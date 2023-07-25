@@ -218,6 +218,7 @@ class Decoder(nn.Module):
         else:
             return encoder_features + x
 
+
 class SegAirwayModel(nn.Module):
     """
     Args:
