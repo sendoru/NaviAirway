@@ -56,10 +56,11 @@ def main():
             image_path.append(ph)
 
     save_path = args.save_path
-    try:
-        os.makedirs("save_path")
-    except:
-        pass
+    if not os.path.exists(save_path):
+        try:
+            os.makedirs(save_path)
+        except:
+            pass
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     threshold = args.threshold
@@ -78,7 +79,7 @@ def main():
         seg_result_comb = np.zeros(raw_img.shape, dtype=float)
         seg_onehot_comb = np.zeros(raw_img.shape, dtype=int)
 
-        
+        seg_processed_II = seg_onehot_comb
         for i, load_path in enumerate(weight_path):
             seg_result = \
             semantic_segment_crop_and_cat(raw_img, models[i], device,
@@ -105,18 +106,18 @@ def main():
 
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II),
                         save_path.rstrip('/').rstrip('\\')
-                        + os.sep
-                        + image_path[image_path.rfind('/') + 1:image_path.lfind('.')][image_path.rfind('\\') + 1:]
+                        + '/'
+                        + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         for i in range(1, 10):
             seg_high_gen = (voxel_by_generation >= i).astype(int)
             sitk.WriteImage(sitk.GetImageFromArray(seg_high_gen),
                             save_path.rstrip('/').rstrip('\\')
-                            + os.sep
-                            + image_path[image_path.rfind('/') + 1:image_path.lfind('.')][image_path.rfind('\\') + 1:]
+                            + '/'
+                            + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                             + f"_segmentation_gen_{i}_or_higher.nii.gz")
 
-    generation_ratio.to_csv(save_path + save_path[save_path.rfind('/') + 1:][save_path.rfind('\\') + 1:] + os.sep + "generation_ratio.csv")
+    generation_ratio.to_csv(save_path + save_path.rstrip('/').rstrip('\\') + os.sep + "generation_ratio.csv")
 
 if __name__ == "__main__":
     main()
