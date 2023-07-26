@@ -1,0 +1,18 @@
+--weight_path
+checkpoint/checkpoint.pkl
+checkpoint/checkpoint_semi_supervise_learning.pkl
+
+--image_path
+data/Airway/EXACT09_3D/test/CASE21.nii.gz
+data/Airway/EXACT09_3D/test/CASE22.nii.gz
+data/Airway/EXACT09_3D/test/CASE23.nii.gz
+data/Airway/EXACT09_3D/test/CASE24.nii.gz
+# data/Airway/EXACT09_3D/test/CASE25.nii.gz
+# data/Airway/EXACT09_3D/test/CASE26.nii.gz
+# data/Airway/EXACT09_3D/test/CASE27.nii.gz
+# data/Airway/EXACT09_3D/test/CASE28.nii.gz
+# data/Airway/EXACT09_3D/test/CASE29.nii.gz
+# data/Airway/EXACT09_3D/test/CASE30.nii.gz
+
+--save_path
+results/230726
