@@ -102,7 +102,7 @@ def main():
         for j, ratio in enumerate(voxel_count_by_generation):
             dict_row[j] = ratio
 
-        generation_ratio.append(dict_row, ignore_index=True)
+        generation_ratio = generation_ratio.append(dict_row, ignore_index=True)
 
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II),
                         save_path.rstrip('/').rstrip('\\')
@@ -117,7 +117,7 @@ def main():
                             + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                             + f"_segmentation_gen_{i}_or_higher.nii.gz")
 
-    generation_ratio.to_csv(save_path + save_path.rstrip('/').rstrip('\\') + os.sep + "generation_ratio.csv")
+    generation_ratio.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv")
 
 if __name__ == "__main__":
     main()
