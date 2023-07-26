@@ -8,6 +8,7 @@ import pydicom
 import cv2
 import nibabel as nib
 import os
+import sys
 import skimage.io as io
 import argparse
 
@@ -36,35 +37,42 @@ def main():
                         help='File save directory')
     parser.add_argument('--threshold', type=float, default=0.7,
                         help='Threshold probability value to decide if a voxel is included in airway or not')
-    parser.parse_args()
+
+    if sys.argv.__len__() == 2:
+        arg_filename_with_prefix = '@' + sys.argv[1]
+        args = parser.parse_args([arg_filename_with_prefix])
+    else:
+        args = parser.parse_args()
+
+    save_path = args.save_path
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     threshold = parser.threshold
     generation_ratio = pd.DataFrame()
 
-    models = [None for _ in range(len(parser.weigh_path))]
+    models = [None for _ in range(len(args.weigh_path))]
 
-    for i, load_path in enumerate(parser.weight_path):
+    for i, load_path in enumerate(args.weight_path):
         models[i]=SegAirwayModel(in_channels=1, out_channels=2)
         models[i].to(device)
         checkpoint = torch.load(load_path)
         models[i].load_state_dict(checkpoint['model_state_dict'])
 
-    for image_path in parser.image_path:
-        raw_img = load_one_CT_img(parser.image_path)
+    for image_path in args.image_path:
+        raw_img = load_one_CT_img(args.image_path)
         seg_result_comb = np.zeros(raw_img.shape, dtype=float)
         seg_onehot_comb = np.zeros(raw_img.shape, dtype=int)
 
         
-        for i, load_path in enumerate(parser.weight_path):
+        for i, load_path in enumerate(args.weight_path):
             seg_result = \
             semantic_segment_crop_and_cat(raw_img, models[i], device,
             crop_cube_size=[32, 128, 128], stride=[16, 64, 64], windowMin=-1000, windowMax=600)
             seg_result_comb += seg_result
-            seg_onehot_comb += np.array(seg_result>threshold, dtype=np.int)
+            seg_onehot_comb += np.array(seg_result>threshold, dtype=int)
 
-        seg_result_comb /= len(parser.weight_path)
-        seg_onehot_comb = np.array(seg_onehot_comb>0, dtype=np.int)
+        seg_result_comb /= len(args.weight_path)
+        seg_onehot_comb = np.array(seg_onehot_comb>0, dtype=int)
         seg_processed,_ = post_process(seg_onehot_comb, threshold=threshold)
         seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=2)
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
@@ -81,9 +89,9 @@ def main():
         generation_ratio.append(dict_row, ignore_index=True)
 
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II),
-                        parser.save_path[parser.save_path.rfind('/') + 1:][parser.save_path.rfind('\\') + 1:]
+                        save_path[save_path.rfind('/') + 1:][save_path.rfind('\\') + 1:]
                         + os.sep
-                        + parser.image_path[parser.image_path.rfind('/') + 1:parser.image_path.rfind('.')][parser.image_path.rfind('\\') + 1:]
+                        + image_path[image_path.rfind('/') + 1:image_path.rfind('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
 
-    generation_ratio.to_csv(parser.save_path + os.sep + "generation_ratio.csv")
+    generation_ratio.to_csv(save_path + save_path[save_path.rfind('/') + 1:][save_path.rfind('\\') + 1:] + os.sep + "generation_ratio.csv")
