@@ -111,11 +111,25 @@ def main():
         voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II)
         # voxel_count_by_generation /= voxel_count_by_generation.sum()
 
+        df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)
 
+        fig = go.Figure()
+
+        for item in df_of_line_of_centerline.keys():
+            fig.add_trace(go.Scatter3d(x=df_of_line_of_centerline[item]["x"],
+                                    y=df_of_line_of_centerline[item]["y"],
+                                    z=df_of_line_of_centerline[item]["z"],mode='lines'))
+
+        # save the centerline result
+        fig.write_html(save_path.rstrip('/').rstrip('\\')
+                       + '/'
+                       + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
+                       + "_seg_result_centerline.html")
 
         dict_row = {'path' : image_path}
         for j, ratio in enumerate(voxel_count_by_generation):
             dict_row[str(j)] = ratio
+        dict_row['upside_down'] = upside_down
 
         generation_info = generation_info.append(dict_row, ignore_index=True)
 
