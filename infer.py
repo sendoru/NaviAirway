@@ -28,6 +28,7 @@ get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
 
 def main():
+    sys.setrecursionlimit(100000)
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
     parser.add_argument('--weight_path', nargs='+', default=[],
@@ -64,8 +65,13 @@ def main():
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     threshold = args.threshold
-    generation_ratio = pd.DataFrame()
+    
+    generation_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
+    if os.path.exists(csv_path):
+        generation_info = pd.read_csv(csv_path)
 
+    print(generation_info)
     models = [None for _ in range(len(weight_path))]
 
     for i, load_path in enumerate(weight_path):
@@ -86,38 +92,50 @@ def main():
             crop_cube_size=[32, 128, 128], stride=[16, 64, 64], windowMin=-1000, windowMax=600)
             seg_result_comb += seg_result
             seg_onehot_comb += np.array(seg_result>threshold, dtype=int)
+            
         seg_result_comb /= len(weight_path)
         seg_onehot_comb = np.array(seg_onehot_comb>0, dtype=int)
         seg_processed,_ = post_process(seg_onehot_comb, threshold=threshold)
         seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=2)
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
                                                     search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
+        upside_down = is_upside_down(seg_processed_II)
+        if upside_down:
+            seg_processed_II = seg_processed_II[-1::-1]
         seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II, search_range=2)
 
         voxel_by_generation = get_voxel_by_generation(seg_processed_II, connection_dict_of_seg_II)
-        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II).astype(float)
-        voxel_count_by_generation /= voxel_count_by_generation.sum()
+        if upside_down:
+            voxel_by_generation = voxel_by_generation[-1::-1]
+            seg_processed_II = seg_processed_II[-1::-1]
+        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II)
+        # voxel_count_by_generation /= voxel_count_by_generation.sum()
+
+
 
         dict_row = {'path' : image_path}
         for j, ratio in enumerate(voxel_count_by_generation):
-            dict_row[j] = ratio
+            dict_row[str(j)] = ratio
 
-        generation_ratio = generation_ratio.append(dict_row, ignore_index=True)
+        generation_info = generation_info.append(dict_row, ignore_index=True)
 
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II),
                         save_path.rstrip('/').rstrip('\\')
                         + '/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        for i in range(1, 10):
+        for i in range(0, 10):
+            try:
+                os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/')
+            except:
+                pass
             seg_high_gen = (voxel_by_generation >= i).astype(int)
             sitk.WriteImage(sitk.GetImageFromArray(seg_high_gen),
                             save_path.rstrip('/').rstrip('\\')
-                            + '/'
+                            + '/high_gens/'
                             + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                             + f"_segmentation_gen_{i}_or_higher.nii.gz")
-
-    generation_ratio.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv")
+        generation_info.to_csv(csv_path, index=False)
 
 if __name__ == "__main__":
     main()
