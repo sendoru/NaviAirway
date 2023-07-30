@@ -2,7 +2,7 @@ from .detect_tree import *
 from collections import deque
 from skimage.measure import label
 
-def bfs(node, matrix, unvisited_node_no=-1):
+def bfs(nodes, matrix, unvisited_node_no=-1):
     # do BFS on 3D matrix
     # unvisited node == -1, unreachable node == very big value
     ret = matrix.copy()
@@ -16,15 +16,13 @@ def bfs(node, matrix, unvisited_node_no=-1):
     ]
 
     q = deque()
-    q.append((*node, 0))
-
-    if ret[node[0]][node[1]][node[2]] != unvisited_node_no:
-        return ret
-    
-    ret[node[0]][node[1]][node[2]] = 0
+    for node in nodes:
+        q.append(node)
+        if ret[node[0]][node[1]][node[2]] == unvisited_node_no:
+            ret[node[0]][node[1]][node[2]] = node[3]
 
     while len(q) > 0:
-        x_cur, y_cur, z_cur, dist_cur = q[0]
+        x_cur, y_cur, z_cur, gen_no = q[0]
         q.popleft()
         for i in range(len(directions)):
             x_next = x_cur + directions[i][0]
@@ -35,8 +33,8 @@ def bfs(node, matrix, unvisited_node_no=-1):
                 z_next < 0 or z_next >= ret.shape[2] or \
                 ret[x_next][y_next][z_next] != unvisited_node_no:
                     continue
-            ret[x_next][y_next][z_next] = dist_cur + 1
-            q.append((x_next, y_next, z_next, dist_cur + 1))
+            ret[x_next][y_next][z_next] = gen_no
+            q.append((x_next, y_next, z_next, gen_no))
 
     return ret
 
@@ -54,6 +52,19 @@ def is_upside_down(onehot:np.ndarray):
     return backward < forward
 
 def get_voxel_by_generation(seg_result: np.ndarray, connection_dict: dict, max_valid_gen=15):
+    ret = seg_result - 2
+    nodes = []
+    for key, val in connection_dict.items():
+        if val['generation'] <= max_valid_gen:
+            gen = val['generation']
+        else:
+            gen = max_valid_gen
+        nodes.append((*val['loc'], gen))
+    nodes.sort(key=lambda x:x[3])
+    ret = bfs(nodes, ret)
+    return ret
+
+def get_voxel_by_generation_without_bfs(seg_result: np.ndarray, connection_dict: dict, max_valid_gen=15):
     ret = np.zeros_like(seg_result) - 1
     voxel_coords = np.argwhere(seg_result == 1)
     min_dist = np.ones((len(voxel_coords), max_valid_gen + 1)) * 1e6

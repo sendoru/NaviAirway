@@ -1,5 +1,5 @@
 --seg_path
-results/segmentation_old_model/CASE21_segmentation.nii.gz
+results/segmentation_new_model/CASE21_segmentation.nii.gz
 results/segmentation_new_model/CASE22_segmentation.nii.gz
 results/segmentation_new_model/CASE23_segmentation.nii.gz
 results/segmentation_new_model/CASE24_segmentation.nii.gz
