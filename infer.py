@@ -105,10 +105,10 @@ def main():
         seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II, search_range=2)
 
         voxel_by_generation = get_voxel_by_generation(seg_processed_II, connection_dict_of_seg_II)
+        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II)
         if upside_down:
             voxel_by_generation = voxel_by_generation[-1::-1]
             seg_processed_II = seg_processed_II[-1::-1]
-        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II)
         # voxel_count_by_generation /= voxel_count_by_generation.sum()
 
         df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)

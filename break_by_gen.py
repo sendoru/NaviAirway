@@ -22,12 +22,13 @@ from func.model_run import get_image_and_label, get_crop_of_image_and_label_with
 semantic_segment_crop_and_cat, dice_accuracy
 from func.post_process import post_process, add_broken_parts_to_the_result, find_end_point_of_the_airway_centerline, \
 get_super_vox, Cluster_super_vox, delete_fragments, get_outlayer_of_a_3d_shape, get_crop_by_pixel_val, fill_inner_hole
-from func.detect_tree import tree_detection
+import func.detect_tree_v2
 from func.ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_one_CT_img, \
 get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
 
 def main():
+    CUTOFF_SLICE_COUNT = 50
     sys.setrecursionlimit(10000000)
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
@@ -65,18 +66,34 @@ def main():
         upside_down = is_upside_down(seg_processed_II)
         if upside_down:
             seg_processed_II = seg_processed_II[-1::-1]
-        seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II, search_range=10)
+        seg_processed_II_clean = np.zeros_like(seg_processed_II)
+        last_nonzero = np.argwhere(np.sum(seg_processed_II, axis=(1, 2)) > 0)[-1][0]
+        seg_processed_II_clean[:last_nonzero - CUTOFF_SLICE_COUNT] = seg_processed_II[:last_nonzero - CUTOFF_SLICE_COUNT]
+        seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = func.detect_tree_v2.tree_detection(seg_processed_II_clean, search_range=32)
 
-        for key, val in connection_dict_of_seg_II.items():
-            if val['generation'] > 0:
-                print(val['generation'])
-
-        voxel_by_generation = get_voxel_by_generation(seg_processed_II, connection_dict_of_seg_II)
+        voxel_by_generation = get_voxel_by_generation(seg_processed_II_clean, connection_dict_of_seg_II)
+        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II_clean, connection_dict_of_seg_II).astype(float)
+        voxel_by_generation[last_nonzero - CUTOFF_SLICE_COUNT:] = 2 * (seg_processed_II[last_nonzero - CUTOFF_SLICE_COUNT:] - 1)
         if upside_down:
             voxel_by_generation = voxel_by_generation[-1::-1]
             seg_processed_II = seg_processed_II[-1::-1]
-        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II).astype(float)
+            seg_processed_II_clean = seg_processed_II_clean[-1::-1]
         # voxel_count_by_generation /= voxel_count_by_generation.sum()
+        
+        df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)
+
+        fig = go.Figure()
+
+        for item in df_of_line_of_centerline.keys():
+            fig.add_trace(go.Scatter3d(x=df_of_line_of_centerline[item]["x"],
+                                    y=df_of_line_of_centerline[item]["y"],
+                                    z=df_of_line_of_centerline[item]["z"],mode='lines'))
+
+        # save the centerline result
+        fig.write_html(save_path.rstrip('/').rstrip('\\')
+                       + '/'
+                       + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
+                       + "_seg_result_centerline.html")
 
         dict_row = {'path' : seg_path}
         for j, ratio in enumerate(voxel_count_by_generation):
@@ -96,8 +113,7 @@ def main():
                 os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/')
             except:
                 pass
-            seg_high_gen = (voxel_by_generation >= i).astype(int)
-            seg_high_gen = (voxel_by_generation >= i).astype(int)
+            seg_high_gen = (voxel_by_generation >= i).astype(np.uint8)
             sitk.WriteImage(sitk.GetImageFromArray(seg_high_gen),
                             save_path.rstrip('/').rstrip('\\')
                             + '/high_gens/'
@@ -105,6 +121,7 @@ def main():
                             + f"_gen_{i}_or_higher.nii.gz")
 
         generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv", index=False)
+        print(generation_info)
 
 if __name__ == "__main__":
     main()
