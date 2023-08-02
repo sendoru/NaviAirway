@@ -28,8 +28,8 @@ get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
 
 def main():
-    CUTOFF_SLICE_COUNT = 50
-    sys.setrecursionlimit(10000000)
+    CUTOFF_SLICE_COUNT = 10
+    sys.setrecursionlimit(123456)
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
     parser.add_argument('--seg_path', nargs='+', default=[],
@@ -63,17 +63,22 @@ def main():
     for seg_path in seg_path:
         print(f"Processing {seg_path}")
         seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
+
         upside_down = is_upside_down(seg_processed_II)
         if upside_down:
             seg_processed_II = seg_processed_II[-1::-1]
         seg_processed_II_clean = np.zeros_like(seg_processed_II)
+        
         last_nonzero = np.argwhere(np.sum(seg_processed_II, axis=(1, 2)) > 0)[-1][0]
         seg_processed_II_clean[:last_nonzero - CUTOFF_SLICE_COUNT] = seg_processed_II[:last_nonzero - CUTOFF_SLICE_COUNT]
+
         seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = func.detect_tree_v2.tree_detection(seg_processed_II_clean, search_range=32)
+        connection_dict_of_seg_II = func.detect_tree_v2.prune_conneciton_dict(connection_dict_of_seg_II)
 
         voxel_by_generation = get_voxel_by_generation(seg_processed_II_clean, connection_dict_of_seg_II)
         voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II_clean, connection_dict_of_seg_II).astype(float)
         voxel_by_generation[last_nonzero - CUTOFF_SLICE_COUNT:] = 2 * (seg_processed_II[last_nonzero - CUTOFF_SLICE_COUNT:] - 1)
+
         if upside_down:
             voxel_by_generation = voxel_by_generation[-1::-1]
             seg_processed_II = seg_processed_II[-1::-1]
@@ -119,6 +124,15 @@ def main():
                             + '/high_gens/'
                             + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                             + f"_gen_{i}_or_higher.nii.gz")
+            
+        voxel_by_generation[voxel_by_generation < 0] = -1
+        voxel_by_generation += 1
+        voxel_by_generation[voxel_by_generation > 6] = 6
+        sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation),
+                        save_path.rstrip('/').rstrip('\\')
+                        + '/'
+                        + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
+                        + "_by_gen.nii.gz")
 
         generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv", index=False)
         print(generation_info)
