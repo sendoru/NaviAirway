@@ -1,7 +1,9 @@
 # tree detection V3
+import gc
 import numpy as np
 from skimage.morphology import skeletonize_3d
 from skimage.measure import label as label_regions
+import heapq
 
 def tree_detection(seg_onehot, search_range = 2, need_skeletonize_3d=True):
     center_map, center_dict, nearby_dict = get_the_skeleton_and_center_nearby_dict(seg_onehot, search_range=search_range, need_skeletonize_3d=need_skeletonize_3d)
@@ -57,12 +59,11 @@ def get_the_skeleton_and_center_nearby_dict(seg_input, search_range = 10, need_s
     return center_map, center_dict, nearby_dict
 
 # step 2 get_connection_dict
-def get_connection_dict(center_dict, nearby_dict):
+def get_connection_dict(center_dict, nearby_dict, branch_penalty=16.):
     slice_idxs = list(center_dict.keys())
     slice_idxs.reverse()
     
     # init connection dict
-    global connection_dict
     connection_dict = {}
     for slice_idx in slice_idxs:
         connection_dict[slice_idx] = {}
@@ -72,10 +73,11 @@ def get_connection_dict(center_dict, nearby_dict):
         connection_dict[slice_idx]["is_bifurcation"] = False
         connection_dict[slice_idx]["number_of_next"] = 0
         connection_dict[slice_idx]["generation"] = 0
+        connection_dict[slice_idx]["segment_no"] = 0
         connection_dict[slice_idx]["is_processed"] = False
     
     def find_connection(current_label, before_label):
-        global connection_dict
+        nonlocal connection_dict
         
         nearby_labels = nearby_dict[current_label]
         valid_next_labels = []
@@ -108,7 +110,61 @@ def get_connection_dict(center_dict, nearby_dict):
                     connection_dict[current_label]["next"].append(valid_next_label)
                     find_connection(valid_next_label, current_label)
     
-    find_connection(current_label=slice_idxs[0], before_label=0)
+    def find_connection_using_regularized_prim(start_label, null_label=0):
+        nonlocal connection_dict
+        pq = []
+
+        # (cost of edge, outdegree of before_label, before_label, current_label)
+        pq.append((-10000, 0, null_label, start_label))
+        while len(pq) > 0:
+            _, outdegree, before_label, current_label= pq[0]
+            heapq.heappop(pq)
+
+            # if the outdegree info retrieved from pq is different from true outdegree from conneciton_dict,
+            # it should be discarded
+            if before_label != null_label:
+                true_outdegree = len(connection_dict[before_label]["next"])
+                if true_outdegree > 2:
+                    true_outdegree = 2
+                if true_outdegree != outdegree:
+                    continue
+
+            if connection_dict[current_label]["is_processed"]:
+                continue
+            if before_label != null_label:
+                connection_dict[before_label]["next"].append(current_label)
+            connection_dict[current_label]["before"].append(before_label)
+            connection_dict[current_label]["is_processed"] = True
+
+            # if outdegree of before_label changes like (0 -> 1) or (1 -> 2),
+            # edges start from before_label should be pushed to pq again
+            if before_label != null_label and len(connection_dict[before_label]["next"]) <= 2:
+                nearby_labels = nearby_dict[before_label]
+                for nearby_label in nearby_labels:
+                    if connection_dict[nearby_label]["is_processed"] == False:
+                        valid_next_labels.append(nearby_label)
+                        cost = np.sum(((np.array(connection_dict[nearby_label]["loc"])-np.array(connection_dict[before_label]["loc"]))**2))
+                        if true_outdegree + 1 >= 2:
+                            cost -= branch_penalty
+                        elif true_outdegree + 1 == 1:
+                            cost += branch_penalty
+
+                        heapq.heappush(pq, (cost, true_outdegree + 1, before_label, nearby_label))
+
+            nearby_labels = nearby_dict[current_label]
+            valid_next_labels = []
+            dist_to_valid_labels = []
+            processed_count = 0
+            for nearby_label in nearby_labels:
+                if connection_dict[nearby_label]["is_processed"] == False:
+                    valid_next_labels.append(nearby_label)
+                    cost = np.sum(((np.array(connection_dict[nearby_label]["loc"])-np.array(connection_dict[current_label]["loc"]))**2))
+
+                    heapq.heappush(pq, (cost, 0, current_label, nearby_label))
+                else:
+                    processed_count+=1
+    
+    find_connection_using_regularized_prim(start_label=slice_idxs[0], null_label=0)
     
     for item in connection_dict.keys():
         assert len(connection_dict[item]["before"])<=1, (item, connection_dict[item])
@@ -116,20 +172,26 @@ def get_connection_dict(center_dict, nearby_dict):
         connection_dict[item]["is_bifurcation"] = (connection_dict[item]["number_of_next"]>1)
         #if connection_dict[item]["is_bifurcation"]:
         #    print(connection_dict[item])
-            
-    def find_generation(current_label, generation):
-        global connection_dict
-        connection_dict[current_label]["generation"]=generation
+
+    segment_no = 1
+    def find_generation_and_node_no(current_label, generation):
+        nonlocal connection_dict
+        nonlocal segment_no
+        connection_dict[current_label]["generation"] = generation
+        connection_dict[current_label]["segment_no"] = segment_no
         if connection_dict[current_label]["number_of_next"]>0:
             for next_label in connection_dict[current_label]["next"]:
                 if connection_dict[current_label]["is_bifurcation"]:
-                    find_generation(next_label, generation+1)
+                    segment_no += 1
+                    find_generation_and_node_no(next_label, generation+1)
                 else:
-                    find_generation(next_label, generation)
+                    find_generation_and_node_no(next_label, generation)
         else:
             return connection_dict
     
-    find_generation(current_label=slice_idxs[0], generation=0)
+    find_generation_and_node_no(current_label=slice_idxs[0], generation=0)
+
+    gc.collect()
     
     return connection_dict
 
@@ -164,6 +226,125 @@ def get_tree_length(connection_dict, is_3d_len=True):
                 get_tree_length_func(connection_dict, next_label)
     get_tree_length_func(connection_dict, start_label)
     return tree_length
+
+# TODO 1. get segment connection info (adj. list + segment length)
+def get_segment_dict(connection_dict: dict) -> dict:
+    segment_dict = {}
+    for key, val in connection_dict.items():
+        segment_dict[val["segment_no"]] = {
+                "before": 0,
+                "next": [],
+                "length": 0.,
+                "pruned": False,
+            }
+        
+    def dfs(current_label: int) -> None:
+        nonlocal connection_dict, segment_dict
+        current_segment_no = connection_dict[current_label]["segment_no"]
+        if connection_dict[current_label]["number_of_next"] > 0:
+            for next_label in connection_dict[current_label]["next"]:
+                next_segment_no = connection_dict[next_label]["segment_no"]
+                segment_dict[next_segment_no]["length"] += \
+                    np.sqrt(np.sum((np.array(connection_dict[current_label]["loc"])-np.array(connection_dict[next_label]["loc"]))**2))
+                if connection_dict[current_label]["is_bifurcation"]:
+                    segment_dict[current_segment_no]["next"].append(next_segment_no)
+                    segment_dict[next_segment_no]["before"] = current_segment_no
+                    dfs(next_label)
+                else:
+                    dfs(next_label)
+
+    dfs(list(connection_dict.keys())[0])
+    return segment_dict
+
+# 2. get sum of weights (lenght of segments) of subtree for each node using tree DP
+# This function inplaces given variable
+def get_subtree_length(segment_dict: dict) -> dict:
+    for key in segment_dict.keys():
+        segment_dict[key]["subtree_length"] = 0.
+
+    def tree_dp(current_segment: int) -> float:
+        nonlocal segment_dict
+        for next_segment in segment_dict[current_segment]["next"]:
+            segment_dict[current_segment]["subtree_length"] += tree_dp(next_segment)
+        segment_dict[current_segment]["subtree_length"] += segment_dict[current_segment]["length"]
+        return segment_dict[current_segment]["subtree_length"]
+    
+    tree_dp(list(segment_dict.keys())[0])
+
+    return segment_dict
+
+# 3. if a subtree of a segment has too low weight (compared to the sum of weights of its siblings)
+# remove the segment and its subtree
+def prune_segment(segment_dict: dict, th_ratio: float = 0.1) -> dict:
+    def prune_subtree(current_segment):
+        nonlocal segment_dict
+        if segment_dict[current_segment]["pruned"]:
+            return
+        segment_dict[current_segment]["pruned"] = True
+        for next_segment in segment_dict[current_segment]["next"]:
+            prune_subtree(next_segment)
+
+    for segment, val in segment_dict.items():
+        # root segment
+        if val["before"] == 0:
+            continue
+        parent = val["before"]
+        siblings_subtree_length_sum = segment_dict[parent]["subtree_length"] - segment_dict[parent]["length"]
+        if segment_dict[segment]["subtree_length"] < th_ratio * siblings_subtree_length_sum:
+            prune_subtree(segment)
+    
+    return segment_dict
+
+# TODO 4. reconstruct tree using pruned segment info
+def prune_conneciton_dict(connection_dict: dict):
+    segment_dict = get_segment_dict(connection_dict)
+    segment_dict = get_subtree_length(segment_dict)
+    segment_dict = prune_segment(segment_dict)
+
+    for current_label, val in connection_dict.items():
+        next_labels_list = []
+        for next_label in val["next"]:
+            next_segment = connection_dict[next_label]["segment_no"]
+            if not segment_dict[next_segment]["pruned"]:
+                next_labels_list.append(next_label)
+
+        connection_dict[current_label]["next"] = next_labels_list
+        connection_dict[current_label]["number_of_next"] = len(connection_dict[current_label]["next"])
+        connection_dict[current_label]["is_bifurcation"] = connection_dict[current_label]["number_of_next"] > 1
+
+    new_connection_dict = {}
+    keys = connection_dict.keys()
+    for current_label in keys:
+        current_segment = connection_dict[current_label]["segment_no"]
+        if not segment_dict[current_segment]["pruned"]:
+            new_connection_dict[current_label] = connection_dict[current_label]
+
+    connection_dict = new_connection_dict
+
+    segment_no = 1
+    call_cnt = 0
+    def find_generation_and_node_no(current_label, generation):
+        nonlocal segment_no, call_cnt
+        call_cnt += 1
+        if (call_cnt % 10000) == 0:
+            print(call_cnt)
+        nonlocal connection_dict
+        nonlocal segment_no
+        connection_dict[current_label]["generation"] = generation
+        connection_dict[current_label]["segment_no"] = segment_no
+        if connection_dict[current_label]["number_of_next"]>0:
+            for next_label in connection_dict[current_label]["next"]:
+                if connection_dict[current_label]["is_bifurcation"]:
+                    segment_no += 1
+                    find_generation_and_node_no(next_label, generation+1)
+                else:
+                    find_generation_and_node_no(next_label, generation)
+        else:
+            return connection_dict
+    
+    find_generation_and_node_no(current_label=list(connection_dict.keys())[0], generation=0)
+    gc.collect()
+    return connection_dict
 
 
 # # tree detection V2

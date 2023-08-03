@@ -26,6 +26,7 @@ from func.detect_tree import tree_detection
 from func.ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_one_CT_img, \
 get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
+from func.break_and_save_utils import break_and_save
 
 def main():
     sys.setrecursionlimit(100000)
@@ -99,57 +100,14 @@ def main():
         seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=2)
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
                                                     search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
-        upside_down = is_upside_down(seg_processed_II)
-        if upside_down:
-            seg_processed_II = seg_processed_II[-1::-1]
-        seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II, search_range=2)
 
-        voxel_by_generation = get_voxel_by_generation(seg_processed_II, connection_dict_of_seg_II)
-        voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II, connection_dict_of_seg_II)
-        if upside_down:
-            voxel_by_generation = voxel_by_generation[-1::-1]
-            seg_processed_II = seg_processed_II[-1::-1]
-        # voxel_count_by_generation /= voxel_count_by_generation.sum()
-
-        df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)
-
-        fig = go.Figure()
-
-        for item in df_of_line_of_centerline.keys():
-            fig.add_trace(go.Scatter3d(x=df_of_line_of_centerline[item]["x"],
-                                    y=df_of_line_of_centerline[item]["y"],
-                                    z=df_of_line_of_centerline[item]["z"],mode='lines'))
-
-        # save the centerline result
-        fig.write_html(save_path.rstrip('/').rstrip('\\')
-                       + '/'
-                       + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
-                       + "_seg_result_centerline.html")
-
-        dict_row = {'path' : image_path}
-        for j, ratio in enumerate(voxel_count_by_generation):
-            dict_row[str(j)] = ratio
-        dict_row['upside_down'] = upside_down
-
-        generation_info = generation_info.append(dict_row, ignore_index=True)
-
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II),
-                        save_path.rstrip('/').rstrip('\\')
+        seg_path = (save_path.rstrip('/').rstrip('\\')
                         + '/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        for i in range(0, 10):
-            try:
-                os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/')
-            except:
-                pass
-            seg_high_gen = (voxel_by_generation >= i).astype(int)
-            sitk.WriteImage(sitk.GetImageFromArray(seg_high_gen),
-                            save_path.rstrip('/').rstrip('\\')
-                            + '/high_gens/'
-                            + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
-                            + f"_segmentation_gen_{i}_or_higher.nii.gz")
-        generation_info.to_csv(csv_path, index=False)
+        
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II), seg_path)
+        generation_info = break_and_save(seg_path, save_path, generation_info)
 
 if __name__ == "__main__":
     main()
