@@ -21,4 +21,4 @@ results/segmentation_old_model/CASE39_segmentation.nii.gz
 results/segmentation_old_model/CASE40_segmentation.nii.gz
 
 --save_path
-results/use_prim_2
+results/old_method

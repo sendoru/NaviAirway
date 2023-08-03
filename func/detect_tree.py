@@ -164,7 +164,7 @@ def get_connection_dict(center_dict, nearby_dict, branch_penalty=16.):
                 else:
                     processed_count+=1
     
-    find_connection_using_regularized_prim(start_label=slice_idxs[0], null_label=0)
+    find_connection(current_label=slice_idxs[0], before_label=0)
     
     for item in connection_dict.keys():
         assert len(connection_dict[item]["before"])<=1, (item, connection_dict[item])

@@ -33,6 +33,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame)
     seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
 
     upside_down = is_upside_down(seg_processed_II)
+    upside_down = False
     if upside_down:
         seg_processed_II = seg_processed_II[-1::-1]
     seg_processed_II_clean = np.zeros_like(seg_processed_II)
@@ -40,7 +41,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame)
     last_nonzero = np.argwhere(np.sum(seg_processed_II, axis=(1, 2)) > 0)[-1][0]
     seg_processed_II_clean[:last_nonzero - CUTOFF_SLICE_COUNT] = seg_processed_II[:last_nonzero - CUTOFF_SLICE_COUNT]
 
-    seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II_clean, search_range=32)
+    seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II_clean, search_range=2)
     connection_dict_of_seg_II = prune_conneciton_dict(connection_dict_of_seg_II)
 
     voxel_by_generation = get_voxel_by_generation(seg_processed_II_clean, connection_dict_of_seg_II)
