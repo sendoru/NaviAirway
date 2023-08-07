@@ -1,9 +1,9 @@
 --weight_path
-checkpoint/checkpoint_sample_2.pkl
+checkpoint/checkpoint.pkl
 checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
-data/BE_CT_3D/00006185_20080731150531.nii.gz
+data/BE_CT_3D/00021261_20210816133555.nii.gz
 
 --save_path
 results/segmentation_what

@@ -108,11 +108,6 @@ def main():
         seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=2)
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
                                                     search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
-        
-        # resize segment if the image was resized beforehand
-        if orig_size != seg_processed_II.shape:
-            seg_processed_II = transform.resize(seg_processed_II.astype(float), orig_size)
-            seg_processed_II = (seg_processed_II >= 0.5).astype(np.int32)
 
         seg_path = (save_path.rstrip('/').rstrip('\\')
                         + '/'

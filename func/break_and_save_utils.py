@@ -59,7 +59,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
         seg_processed_II = np.round(transform.resize(seg_processed_II.astype(float), scale_to)).astype(np.uint8)
         seg_processed_II_clean = np.round(transform.resize(seg_processed_II_clean.astype(float), scale_to)).astype(np.uint8)
 
-    voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II_clean, connection_dict_of_seg_II).astype(float)
+    voxel_count_by_generation = get_voxel_count_by_generation(voxel_by_generation, connection_dict_of_seg_II).astype(float)
     
     df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)
 

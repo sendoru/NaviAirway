@@ -80,8 +80,7 @@ def get_voxel_by_generation_without_bfs(seg_result: np.ndarray, connection_dict:
     
     return ret
 
-def get_voxel_count_by_generation(seg_result: np.array, connection_dict: dict, max_valid_gen=15):
-    voxel_by_generation = get_voxel_by_generation(seg_result, connection_dict, max_valid_gen)
+def get_voxel_count_by_generation(voxel_by_generation: np.array, connection_dict: dict, max_valid_gen=15):
     # generation higher than 16 is likely to be noise, ignore them
     ret = np.zeros(max_valid_gen + 1, int)
     for i in range(max_valid_gen + 1):
