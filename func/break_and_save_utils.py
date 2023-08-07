@@ -10,6 +10,7 @@ import nibabel as nib
 import os
 import sys
 import skimage.io as io
+import skimage.transform as transform
 import argparse
 
 import matplotlib as mpl
@@ -27,7 +28,7 @@ from .ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_one_
 get_df_of_centerline, get_df_of_line_of_centerline
 from .airway_area_utils import *
 
-def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame):
+def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, scale_to=None):
     CUTOFF_SLICE_COUNT = 10
     print(f"Processing {seg_path}")
     seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
@@ -44,7 +45,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame)
     connection_dict_of_seg_II = prune_conneciton_dict(connection_dict_of_seg_II)
 
     voxel_by_generation = get_voxel_by_generation(seg_processed_II_clean, connection_dict_of_seg_II)
-    voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II_clean, connection_dict_of_seg_II).astype(float)
+
     voxel_by_generation[last_nonzero - CUTOFF_SLICE_COUNT:] = 2 * (seg_processed_II[last_nonzero - CUTOFF_SLICE_COUNT:] - 1)
 
     if upside_down:
@@ -52,6 +53,13 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame)
         seg_processed_II = seg_processed_II[-1::-1]
         seg_processed_II_clean = seg_processed_II_clean[-1::-1]
     # voxel_count_by_generation /= voxel_count_by_generation.sum()
+
+    if scale_to is not None:
+        voxel_by_generation = np.round(transform.resize(voxel_by_generation.astype(float), scale_to, order=0)).astype(int)
+        seg_processed_II = np.round(transform.resize(seg_processed_II.astype(float), scale_to)).astype(np.uint8)
+        seg_processed_II_clean = np.round(transform.resize(seg_processed_II_clean.astype(float), scale_to)).astype(np.uint8)
+
+    voxel_count_by_generation = get_voxel_count_by_generation(seg_processed_II_clean, connection_dict_of_seg_II).astype(float)
     
     df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)
 
@@ -89,7 +97,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame)
     voxel_by_generation[voxel_by_generation < 0] = -1
     voxel_by_generation += 1
     voxel_by_generation[voxel_by_generation > 6] = 6
-    sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation),
+    sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
                     + '/'
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]

@@ -52,7 +52,7 @@ def is_upside_down(onehot:np.ndarray):
     return backward < forward
 
 def get_voxel_by_generation(seg_result: np.ndarray, connection_dict: dict, max_valid_gen=15):
-    ret = seg_result - 2
+    ret = seg_result.astype(np.int32) - 2
     nodes = []
     for key, val in connection_dict.items():
         if val['generation'] <= max_valid_gen:

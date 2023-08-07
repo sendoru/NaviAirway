@@ -9,6 +9,7 @@ import cv2
 import nibabel as nib
 import os
 import sys
+import skimage.transform as transform
 import skimage.io as io
 import argparse
 
@@ -29,6 +30,7 @@ from func.airway_area_utils import *
 from func.break_and_save_utils import break_and_save
 
 def main():
+    MIN_SLICE_COUNT = 256
     sys.setrecursionlimit(100000)
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
@@ -82,10 +84,16 @@ def main():
         models[i].load_state_dict(checkpoint['model_state_dict'])
 
     for image_path in image_path:
+
+        # load and resize image if its scale is too different from train data
         raw_img = load_one_CT_img(image_path)
+        orig_size = raw_img.shape
+        if orig_size[0] < MIN_SLICE_COUNT:
+            raw_img = transform.resize(raw_img.astype(float), (MIN_SLICE_COUNT, orig_size[1], orig_size[2])).astype(int)
+
+        # make prob map and onehot segment
         seg_result_comb = np.zeros(raw_img.shape, dtype=float)
         seg_onehot_comb = np.zeros(raw_img.shape, dtype=int)
-
         seg_processed_II = seg_onehot_comb
         for i, load_path in enumerate(weight_path):
             seg_result = \
@@ -100,6 +108,11 @@ def main():
         seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=2)
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
                                                     search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
+        
+        # resize segment if the image was resized beforehand
+        if orig_size != seg_processed_II.shape:
+            seg_processed_II = transform.resize(seg_processed_II.astype(float), orig_size)
+            seg_processed_II = (seg_processed_II >= 0.5).astype(np.int32)
 
         seg_path = (save_path.rstrip('/').rstrip('\\')
                         + '/'
@@ -107,7 +120,7 @@ def main():
                         + "_segmentation.nii.gz")
         
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II), seg_path)
-        generation_info = break_and_save(seg_path, save_path, generation_info)
+        generation_info = break_and_save(seg_path, save_path, generation_info, orig_size)
 
 if __name__ == "__main__":
     main()
