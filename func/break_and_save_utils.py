@@ -31,7 +31,7 @@ from .airway_area_utils import *
 def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, scale_to=None):
     CUTOFF_SLICE_COUNT = 10
     print(f"Processing {seg_path}")
-    seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
+    seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path)).astype(int)
 
     upside_down = is_upside_down(seg_processed_II)
     if upside_down:
@@ -56,10 +56,10 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
 
     if scale_to is not None:
         voxel_by_generation = np.round(transform.resize(voxel_by_generation.astype(float), scale_to, order=0)).astype(int)
-        seg_processed_II = np.round(transform.resize(seg_processed_II.astype(float), scale_to)).astype(np.uint8)
-        seg_processed_II_clean = np.round(transform.resize(seg_processed_II_clean.astype(float), scale_to)).astype(np.uint8)
+        seg_processed_II = np.round(transform.resize(seg_processed_II.astype(float), scale_to)).astype(int)
+        seg_processed_II_clean = np.round(transform.resize(seg_processed_II_clean.astype(float), scale_to)).astype(int)
 
-    voxel_count_by_generation = get_voxel_count_by_generation(voxel_by_generation, connection_dict_of_seg_II).astype(float)
+    voxel_count_by_generation = get_voxel_count_by_generation(voxel_by_generation, connection_dict_of_seg_II).astype(int)
     
     df_of_line_of_centerline = get_df_of_line_of_centerline(connection_dict_of_seg_II)
 

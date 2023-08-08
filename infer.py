@@ -57,7 +57,7 @@ def main():
     image_path = []
     for ph in args.image_path:
         if ph != ''and ph[0] != '#':
-            image_path.append(ph)
+            image_path.append(ph.lstrip("./"))
 
     save_path = args.save_path
     if not os.path.exists(save_path):
@@ -114,7 +114,7 @@ def main():
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II), seg_path)
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path)
         generation_info = break_and_save(seg_path, save_path, generation_info, orig_size)
 
 if __name__ == "__main__":
