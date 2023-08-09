@@ -109,8 +109,9 @@ def main():
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
                                                     search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
 
+        os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment/', exist_ok=True)
         seg_path = (save_path.rstrip('/').rstrip('\\')
-                        + '/'
+                        + '/orig_segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         

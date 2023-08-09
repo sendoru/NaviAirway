@@ -1,5 +1,5 @@
 --weight_path
-checkpoint/checkpoint.pkl
+checkpoint/checkpoint_sample_2.pkl
 checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
@@ -39,4 +39,4 @@ checkpoint/checkpoint_semi_supervise_learning.pkl
 
 
 --save_path
-results/segmentation_what
+results/segmentation_what_new_model

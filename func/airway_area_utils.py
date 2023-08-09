@@ -51,6 +51,15 @@ def is_upside_down(onehot:np.ndarray):
     backward = np.dot(comp_counts, np.linspace(len(comp_counts), 1, len(comp_counts)))
     return backward < forward
 
+def get_only_largest_component(slice: np.ndarray):
+    slice_label, comp_count = label(slice, return_num=True, connectivity=1)
+    comp_size = np.zeros(comp_count + 1)
+    for i in range(1, comp_count + 1):
+        comp_size[i] = (slice_label == i).astype(int).sum()
+    dtype = slice.dtype
+    slice_label = (slice_label == (comp_size.argmax())).astype(dtype)
+    return slice_label
+
 def get_voxel_by_generation(seg_result: np.ndarray, connection_dict: dict, max_valid_gen=15):
     ret = seg_result.astype(np.int32) - 2
     nodes = []

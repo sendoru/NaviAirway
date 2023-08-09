@@ -40,6 +40,10 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     
     last_nonzero = np.argwhere(np.sum(seg_processed_II, axis=(1, 2)) > 0)[-1][0]
     seg_processed_II_clean[:last_nonzero - CUTOFF_SLICE_COUNT] = seg_processed_II[:last_nonzero - CUTOFF_SLICE_COUNT]
+    # The last index indicates top of slice actually
+    for i in range(1, 6):
+        seg_processed_II_clean[last_nonzero - CUTOFF_SLICE_COUNT - i] = \
+            get_only_largest_component(seg_processed_II_clean[last_nonzero - CUTOFF_SLICE_COUNT - i])
 
     seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II_clean, search_range=32)
     connection_dict_of_seg_II = prune_conneciton_dict(connection_dict_of_seg_II)
@@ -70,9 +74,10 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                                 y=df_of_line_of_centerline[item]["y"],
                                 z=df_of_line_of_centerline[item]["z"],mode='lines'))
 
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/centerline/', exist_ok=True)
     # save the centerline result
     fig.write_html(save_path.rstrip('/').rstrip('\\')
-                    + '/'
+                    + '/centerline/'
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                     + "_seg_result_centerline.html")
 
@@ -83,10 +88,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     generation_info = generation_info.append(dict_row, ignore_index=True)
     
     for i in range(0, 10):
-        try:
-            os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/')
-        except:
-            pass
+        os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/', exist_ok=True)
         seg_high_gen = (voxel_by_generation >= i).astype(np.uint8)
         sitk.WriteImage(sitk.GetImageFromArray(seg_high_gen),
                         save_path.rstrip('/').rstrip('\\')
@@ -97,9 +99,10 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     voxel_by_generation[voxel_by_generation < 0] = -1
     voxel_by_generation += 1
     voxel_by_generation[voxel_by_generation > 6] = 6
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
-                    + '/'
+                    + '/by_gen/'
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                     + "_by_gen.nii.gz")
 
