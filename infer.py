@@ -54,10 +54,10 @@ def main():
         if ph != '' and ph[0] != '#':
             weight_path.append(ph)
     
-    image_path = []
+    image_paths = []
     for ph in args.image_path:
         if ph != ''and ph[0] != '#':
-            image_path.append(ph.lstrip("./"))
+            image_paths.append(ph.lstrip("./"))
 
     save_path = args.save_path
     if not os.path.exists(save_path):
@@ -68,13 +68,7 @@ def main():
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     threshold = args.threshold
-    
-    generation_info = pd.DataFrame()
-    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
-    if os.path.exists(csv_path):
-        generation_info = pd.read_csv(csv_path)
 
-    print(generation_info)
     models = [None for _ in range(len(weight_path))]
 
     for i, load_path in enumerate(weight_path):
@@ -83,7 +77,7 @@ def main():
         checkpoint = torch.load(load_path)
         models[i].load_state_dict(checkpoint['model_state_dict'])
 
-    for image_path in image_path:
+    for image_path in image_paths:
 
         # load and resize image if its scale is too different from train data
         raw_img = load_one_CT_img(image_path)
@@ -95,6 +89,8 @@ def main():
         seg_result_comb = np.zeros(raw_img.shape, dtype=float)
         seg_onehot_comb = np.zeros(raw_img.shape, dtype=int)
         seg_processed_II = seg_onehot_comb
+
+        # run the model
         for i, load_path in enumerate(weight_path):
             seg_result = \
             semantic_segment_crop_and_cat(raw_img, models[i], device,
@@ -102,6 +98,7 @@ def main():
             seg_result_comb += seg_result
             seg_onehot_comb += np.array(seg_result>threshold, dtype=int)
             
+        # segmentation by thresholding + post-process
         seg_result_comb /= len(weight_path)
         seg_onehot_comb = np.array(seg_onehot_comb>0, dtype=int)
         seg_processed,_ = post_process(seg_onehot_comb, threshold=threshold)
@@ -109,14 +106,39 @@ def main():
         seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
                                                     search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
 
+        # save segment
         os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment/', exist_ok=True)
         seg_path = (save_path.rstrip('/').rstrip('\\')
                         + '/orig_segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path)
-        generation_info = break_and_save(seg_path, save_path, generation_info, orig_size)
+        
+        # make generation labeling + save
+        break_and_save(seg_path, save_path, orig_size)
+
+        # save voxel spacing information
+        csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
+        generation_info = pd.read_csv(csv_path)
+
+        has_pixdim = False
+        try:
+            nib_file = nib.load(image_path)
+            pixdim = nib_file.header['pixdim']
+            has_pixdim = True
+        except ValueError:
+            pixdim = [0., 1., 1., 1.]
+        generation_info.iloc[-1]['pixdim_x'] = pixdim[1]
+        generation_info.iloc[-1]['pixdim_y'] = pixdim[2]
+        generation_info.iloc[-1]['pixdim_z'] = pixdim[3]
+        generation_info.iloc[-1]['has_pixdim'] = has_pixdim
+        voxel_size = pixdim[1] * pixdim[2] * pixdim[3]
+
+        for i in range(1, 6 + 1):
+            generation_info.iloc[-1][i] /= voxel_size
+
+        generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv", index=False)
+
 
 if __name__ == "__main__":
     main()

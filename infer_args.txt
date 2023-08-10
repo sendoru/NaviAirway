@@ -37,6 +37,7 @@ checkpoint/checkpoint_semi_supervise_learning.pkl
 ./data/BE_CT_3D/00082785_20220721151831.nii.gz
 ./data/BE_CT_3D/00082897_20220830131905.nii.gz
 
+--threshold 0.5
 
 --save_path
-results/segmentation_what
+results/segmentation_what_low_th

@@ -28,7 +28,12 @@ from .ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_one_
 get_df_of_centerline, get_df_of_line_of_centerline
 from .airway_area_utils import *
 
-def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, scale_to=None):
+def break_and_save(seg_path: str, save_path: str, scale_to=None):
+    generation_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
+    if os.path.exists(csv_path):
+        generation_info = pd.read_csv(csv_path)
+
     CUTOFF_SLICE_COUNT = 10
     print(f"Processing {seg_path}")
     seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path)).astype(int)
@@ -82,9 +87,19 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                     + "_seg_result_centerline.html")
 
     dict_row = {'path' : seg_path}
-    for j, ratio in enumerate(voxel_count_by_generation):
-        dict_row[j + 1] = ratio
+    for j, count in enumerate(voxel_count_by_generation):
+        if j + 1 == 6:
+            dict_row[6] = float(voxel_count_by_generation[6:].sum())
+            break
+        else:
+            dict_row[j + 1] = float(count)
+
     dict_row['upside_down'] = upside_down
+    dict_row['pixdim_x'] = 1.
+    dict_row['pixdim_y'] = 1.
+    dict_row['pixdim_z'] = 1.
+    dict_row['has_pixdim'] = False
+
     generation_info = generation_info.append(dict_row, ignore_index=True)
     
     for i in range(0, 10):
@@ -96,9 +111,12 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                         + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                         + f"_gen_{i + 1}_or_higher.nii.gz")
         
+    
     voxel_by_generation[voxel_by_generation < 0] = -1
     voxel_by_generation += 1
     voxel_by_generation[voxel_by_generation > 6] = 6
+
+
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
@@ -106,6 +124,6 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                     + "_by_gen.nii.gz")
 
-    generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv", index=False)
+    generation_info.to_csv(csv_path, index=False)
     print(generation_info)
     return generation_info
