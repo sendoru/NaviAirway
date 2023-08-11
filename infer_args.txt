@@ -1,6 +1,5 @@
 --weight_path
 checkpoint/checkpoint.pkl
-checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
 ./data/BE_CT_3D/00006185_20080731150531.nii.gz

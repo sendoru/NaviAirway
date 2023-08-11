@@ -120,6 +120,7 @@ def main():
         # save voxel spacing information
         csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
         generation_info = pd.read_csv(csv_path)
+        cur_generation_info = generation_info.iloc[-1]
 
         has_pixdim = False
         try:
@@ -128,15 +129,16 @@ def main():
             has_pixdim = True
         except ValueError:
             pixdim = [0., 1., 1., 1.]
-        generation_info.iloc[-1]['pixdim_x'] = pixdim[1]
-        generation_info.iloc[-1]['pixdim_y'] = pixdim[2]
-        generation_info.iloc[-1]['pixdim_z'] = pixdim[3]
-        generation_info.iloc[-1]['has_pixdim'] = has_pixdim
+        cur_generation_info['pixdim_x'] = pixdim[1]
+        cur_generation_info['pixdim_y'] = pixdim[2]
+        cur_generation_info['pixdim_z'] = pixdim[3]
+        cur_generation_info['has_pixdim'] = has_pixdim
+        
         voxel_size = pixdim[1] * pixdim[2] * pixdim[3]
-
         for i in range(1, 6 + 1):
-            generation_info.iloc[-1][i] /= voxel_size
+            cur_generation_info[str(i)] *= voxel_size
 
+        generation_info.iloc[-1] = cur_generation_info
         generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_ratio.csv", index=False)
 
 

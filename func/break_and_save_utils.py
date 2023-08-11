@@ -89,10 +89,10 @@ def break_and_save(seg_path: str, save_path: str, scale_to=None):
     dict_row = {'path' : seg_path}
     for j, count in enumerate(voxel_count_by_generation):
         if j + 1 == 6:
-            dict_row[6] = float(voxel_count_by_generation[6:].sum())
+            dict_row[str(6)] = float(voxel_count_by_generation[6:].sum())
             break
         else:
-            dict_row[j + 1] = float(count)
+            dict_row[str(j + 1)] = float(count)
 
     dict_row['upside_down'] = upside_down
     dict_row['pixdim_x'] = 1.
