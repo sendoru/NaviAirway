@@ -245,7 +245,7 @@ def get_segment_dict(connection_dict: dict) -> dict:
             for next_label in connection_dict[current_label]["next"]:
                 next_segment_no = connection_dict[next_label]["segment_no"]
                 segment_dict[next_segment_no]["length"] += \
-                    np.sqrt(np.sum((np.array(connection_dict[current_label]["loc"])-np.array(connection_dict[next_label]["loc"]))**2))
+                    np.sqrt(np.sum((np.array(connection_dict[current_label]["loc"]) - np.array(connection_dict[next_label]["loc"]))**2))
                 if connection_dict[current_label]["is_bifurcation"]:
                     segment_dict[current_segment_no]["next"].append(next_segment_no)
                     segment_dict[next_segment_no]["before"] = current_segment_no

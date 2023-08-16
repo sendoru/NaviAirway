@@ -38,11 +38,15 @@ def main():
                         help="weight file(s) to use for prediction")
     parser.add_argument('--image_path', nargs='+', default=[],
                         help='Image file(s) to use for prediction (type:*.nii.gz)')
+    parser.add_argument('--select_dir', action='store_true',
+                        help='if set, consider each element in ```image_path``` as directory and select all files in each ```image_path``` directory')
     parser.add_argument('--save_path', type=str, required=True, default='',
                         help='File save directory')
     parser.add_argument('--threshold', type=float, default=0.7,
                         help='Threshold probability value to decide if a voxel is included in airway or not')
-    weight_path = []
+    parser.add_argument('--segmentation_only', action='store_true',
+                        help='Do not label generation if set')
+
 
     if sys.argv.__len__() == 2:
         arg_filename_with_prefix = '@' + sys.argv[1]
@@ -50,14 +54,22 @@ def main():
     else:
         args = parser.parse_args()
 
+    weight_path = []
     for ph in args.weight_path:
         if ph != '' and ph[0] != '#':
             weight_path.append(ph)
     
     image_path = []
-    for ph in args.image_path:
-        if ph != ''and ph[0] != '#':
-            image_path.append(ph.lstrip("./"))
+    if not args.select_dir:
+        for ph in args.image_path:
+            if ph != ''and ph[0] != '#':
+                image_path.append(ph.lstrip("./"))
+    else:
+        for dir in args.image_path:
+            if dir != ''and dir[0] != '#':
+                file_lists = sorted(os.listdir(dir))
+                for ph in file_lists:
+                    image_path.append(os.path.join(dir, ph).lstrip("./"))
 
     save_path = args.save_path
     if not os.path.exists(save_path):
@@ -73,6 +85,11 @@ def main():
     csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
     if os.path.exists(csv_path):
         generation_info = pd.read_csv(csv_path)
+
+    pixdim_info = pd.DataFrame()
+    pixdim_csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "pixdim_info.csv"
+    if os.path.exists(pixdim_csv_path):
+        pixdim_info = pd.read_csv(pixdim_csv_path)
 
     print(generation_info)
     models = [None for _ in range(len(weight_path))]
@@ -116,7 +133,31 @@ def main():
                         + "_segmentation.nii.gz")
         
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path)
-        generation_info = break_and_save(seg_path, save_path, generation_info, orig_size)
+
+        has_pixdim = False
+        pixdim = np.array([1., 1., 1.])
+        try:
+            img_header = nib.load(image_path).header
+            for i in range(3):
+                pixdim[i] = img_header['pixdim'][i + 1]
+            has_pixdim = True
+        except:
+            pass
+        
+        cur_pixdim_info = {
+            'path': seg_path,
+            'has_pixdim': has_pixdim,
+            'pixdim_x': pixdim[0],
+            'pixdim_y': pixdim[1],
+            'pixdim_z': pixdim[2],
+            'slice_count': orig_size[0]
+        }
+
+        pixdim_info = pd.DataFrame(pixdim_info.append(cur_pixdim_info, ignore_index=True))
+        pixdim_info.to_csv(pixdim_csv_path, index=False)
+        
+        if not args.segmentation_only:
+            generation_info = generation_info.append(break_and_save(seg_path, save_path, generation_info, cur_pixdim_info), ignore_index=True)
 
 if __name__ == "__main__":
     main()
