@@ -189,7 +189,7 @@ def get_connection_dict(center_dict, nearby_dict, branch_penalty=16.):
         else:
             return connection_dict
     
-    find_generation_and_node_no(current_label=slice_idxs[0], generation=0)
+    find_generation_and_node_no(current_label=slice_idxs[0], generation=1)
 
     gc.collect()
     
@@ -342,7 +342,7 @@ def prune_conneciton_dict(connection_dict: dict):
         else:
             return connection_dict
     
-    find_generation_and_node_no(current_label=list(connection_dict.keys())[0], generation=0)
+    find_generation_and_node_no(current_label=list(connection_dict.keys())[0], generation=1)
     gc.collect()
     return connection_dict
 
