@@ -4,6 +4,125 @@ import edt
 import copy
 import torch
 from skimage.measure import label as label_regions
+from .detect_tree import tree_detection
+import heapq
+import time
+
+def post_process_v2(seg_onehot, model_output, threshold=0.5, min_threshold=0.3, search_range=10, add_broken_parts=True, return_seg_onehot_cluster = False, need_erosion_or_expansion = False, kernel_size=3, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+    print("Start postprocessing")
+    cur_time = time.time()
+    seg_onehot_by_component, component_no = label_regions(seg_onehot, connectivity=1, return_num=True)
+    seg_onehot_largest_component = delete_fragments(seg_onehot_by_component)
+    if not add_broken_parts:
+        return seg_onehot_largest_component
+    seg_onehot_largest_component = fill_inner_hole(seg_onehot_largest_component,
+                                       need_erosion_or_expansion=need_erosion_or_expansion,
+                                       kernel_size=kernel_size, device = device)
+    largest_componet_no = (seg_onehot_by_component * seg_onehot_largest_component).max()
+
+    seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_onehot_largest_component, search_range=2,  branch_penalty=0.)
+    center_map_end_point_dict = find_end_point_of_the_airway_centerline(connection_dict_of_seg_I)
+    print(f"Took {time.time() - cur_time:.3f}s for tree detection")
+
+    cur_time = time.time()
+    directions = np.array((
+        (0, 0, -1),
+        (0, 0, 1),
+        (0, -1, 0),
+        (0, 1, 0),
+        (-1, 0, 0),
+        (1, 0, 0)
+    ))
+    for key, val in center_map_end_point_dict.items():
+        search_center = val
+        prob_map_crop, crop_coord = get_crop(model_output, search_center, search_range=search_range)
+        largest_component_crop, _ = get_crop(seg_onehot_largest_component, search_center, search_range=search_range)
+        all_component_crop, _ = get_crop(seg_onehot_by_component, search_center, search_range=search_range)
+
+        # minus one to exclude zero
+        current_component_count = len(np.unique(all_component_crop)) - 1
+
+        # if ```all_component_crop``` doesn't have non-largest component,
+        # the 'merge' is unnecessary
+        if current_component_count == 1:
+            continue
+        
+        # use prim's algorithm to connect each components
+        result_crop = copy.deepcopy(largest_component_crop)
+        merged_component_no = set()
+        # contains (prob, [x, y, z])
+        pq = []
+        visited = (all_component_crop > 0)
+
+        # put initial coords(background boundary) to pq
+        # if the prob value of background voxel is lower than min_threshold, don't put it
+        for i in range(largest_component_crop.shape[0]):
+            for j in range(largest_component_crop.shape[1]):
+                for k in range(largest_component_crop.shape[2]):
+                    if all_component_crop[i][j][k] != 0 or prob_map_crop[i][j][k] < min_threshold:
+                        continue
+                    for direction in directions:
+                        adj = np.array((i, j, k)) + direction
+                        if adj[0] in range(largest_component_crop.shape[0]) and \
+                        adj[1] in range(largest_component_crop.shape[1]) and \
+                        adj[2] in range(largest_component_crop.shape[2]) and \
+                        largest_component_crop[adj[0], adj[1], adj[2]] != 0:
+                            heapq.heappush(pq, (prob_map_crop[i, j, k], np.array((i, j, k))))
+                            visited[i, j, k] = True
+                            break
+
+        # start prim
+        lowest_prob = threshold
+        while len(pq) > 0:
+            prob, coord = pq[0]
+            heapq.heappop(pq)
+
+            all_component_crop[coord[0], coord[1], coord[2]] = largest_componet_no
+
+            # if added voxel is adjected to both largest component and minor component, merge it
+            adj_component_no = set()
+            for direction in directions:
+                adj = coord + direction
+                if adj[0] in range(largest_component_crop.shape[0]) and \
+                adj[1] in range(largest_component_crop.shape[1]) and \
+                adj[2] in range(largest_component_crop.shape[2]) and \
+                all_component_crop[adj[0], adj[1], adj[2]] != 0:
+                    adj_component_no.add(all_component_crop[adj[0], adj[1], adj[2]])
+
+            if prob >= lowest_prob:
+                result_crop = (all_component_crop == largest_componet_no).astype(int)
+
+            if largest_componet_no in adj_component_no and len(adj_component_no) >= 2:
+                for i in adj_component_no:
+                    if i != largest_componet_no:
+                        all_component_crop[all_component_crop == i] = largest_componet_no
+                        merged_component_no.add(i)
+                if lowest_prob > prob:
+                    lowest_prob = prob
+                result_crop = (all_component_crop == largest_componet_no).astype(int)
+            
+            # put adj unvisited voxels adjected to added voxel into pq
+            for direction in directions:
+                adj = coord + direction
+                if adj[0] in range(largest_component_crop.shape[0]) and \
+                adj[1] in range(largest_component_crop.shape[1]) and \
+                adj[2] in range(largest_component_crop.shape[2]) and \
+                prob_map_crop[adj[0], adj[1], adj[2]] >= min_threshold and \
+                not visited[adj[0], adj[1], adj[2]]:
+                    heapq.heappush(pq, (prob_map_crop[adj[0], adj[1], adj[2]], adj))
+                    visited[adj[0], adj[1], adj[2]] = True
+                    
+        seg_onehot_largest_component[crop_coord[0]:crop_coord[1],
+                         crop_coord[2]:crop_coord[3],
+                         crop_coord[4]:crop_coord[5]] = result_crop
+        
+        for i in merged_component_no:
+            seg_onehot_by_component[seg_onehot_by_component == i] = largest_componet_no
+            seg_onehot_largest_component[seg_onehot_by_component == largest_componet_no] = 1
+
+        
+    print(f"Took {time.time() - cur_time:.3f}s for merge")
+    return (seg_onehot_largest_component > 0).astype(int)
 
 def post_process(model_output, threshold=0.5, return_seg_onehot_cluster = False, need_erosion_or_expansion = False, kernel_size=3, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     seg_onehot = np.zeros(model_output.shape)
@@ -309,12 +428,13 @@ def add_broken_parts_to_the_result(connection_dict, model_output_prob_map, seg_p
     
     center_map_end_point_dict = find_end_point_of_the_airway_centerline(connection_dict)
     
-    seg_processed_onehot_II = copy.deepcopy(seg_processed_onehot)
+    seg_processed_onehot_II = copy.deepcopy(seg_processed_onehot).astype(np.int)
     
     for idx, item in enumerate(center_map_end_point_dict.keys()):
         print(idx/len(center_map_end_point_dict.keys()), end="\r")
         search_center = center_map_end_point_dict[item]
         model_output_prob_map_crop, crop_coord = get_crop(model_output_prob_map, search_center, search_range=search_range)
+        model_output_onehot_crop = model_output_onehot_crop >= threshold
         seg_processed_onehot_crop, _ = get_crop(seg_processed_onehot, search_center, search_range=search_range)
 
         size_of_seg_crop = np.sum(seg_processed_onehot_crop)
@@ -331,7 +451,7 @@ def add_broken_parts_to_the_result(connection_dict, model_output_prob_map, seg_p
                          crop_coord[2]:crop_coord[3],
                          crop_coord[4]:crop_coord[5]]+=model_output_crop_revised
     seg_processed_onehot_II = np.array(seg_processed_onehot_II>0, dtype = np.int)
-    
+
     return seg_processed_onehot_II
 
 def get_crop(input_3d_img, search_center, search_range=1):

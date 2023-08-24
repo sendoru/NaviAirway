@@ -1,0 +1,10 @@
+--weight_path
+checkpoint/checkpoint.pkl
+checkpoint/checkpoint_semi_supervise_learning.pkl
+
+--image_path
+./data/BE_CT_3D
+
+--select_dir
+--save_path
+results/segmentation_what_to_gen_10_sep_lr

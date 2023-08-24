@@ -28,14 +28,20 @@ get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
 
 def main():
-    CUTOFF_SLICE_COUNT = 10
     sys.setrecursionlimit(123456)
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
     parser.add_argument('--seg_path', nargs='+', default=[],
                         help='Segmentation file(s) to use for prediction (type:*.nii.gz)')
+    parser.add_argument('--select_dir', action='store_true',
+                        help='if set, consider each element in ```seg_path``` as directory and select all files in each ```seg_path``` directory')
     parser.add_argument('--save_path', type=str, required=True, default='',
                         help='File save directory')
+    parser.add_argument('--image_info_csv_path', type=str, default='',
+                        help='select *.csv file with image info such as image size')
+    parser.add_argument('--branch_penalty', type=float, default=16.)
+    parser.add_argument('--prune_threshold', type=float, default=0.1)
+    parser.add_argument('--use_bfs', action='store_true')
     
     if sys.argv.__len__() == 2:
         arg_filename_with_prefix = '@' + sys.argv[1]
@@ -44,9 +50,16 @@ def main():
         args = parser.parse_args()
         
     seg_path = []
-    for ph in args.seg_path:
-        if ph != ''and ph[0] != '#':
-            seg_path.append(ph)
+    if not args.select_dir:
+        for ph in args.seg_path:
+            if ph != ''and ph[0] != '#':
+                seg_path.append(ph.lstrip("./"))
+    else:
+        for dir in args.seg_path:
+            if dir != ''and dir[0] != '#':
+                file_lists = sorted(os.listdir(dir))
+                for ph in file_lists:
+                    seg_path.append(os.path.join(dir, ph).lstrip("./"))
 
     save_path = args.save_path
     if not os.path.exists(save_path):
@@ -55,13 +68,22 @@ def main():
         except:
             pass
 
+    image_info = pd.DataFrame()
+    if args.image_info_csv_path != '':
+        image_info = pd.read_csv(args.image_info_csv_path)
+        image_info = image_info.set_index('path')
+
     generation_info = pd.DataFrame()
     csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
     if os.path.exists(csv_path):
         generation_info = pd.read_csv(csv_path)
 
     for cur_seg_path in seg_path:
-        generation_info = break_and_save(cur_seg_path, save_path, generation_info)
+        try:
+            pixdim_info = image_info.loc[cur_seg_path]
+        except:
+            pixdim_info = None
+        generation_info = generation_info.append(break_and_save(cur_seg_path, save_path, generation_info, args, pixdim_info), ignore_index=True)
 
 if __name__ == "__main__":
     main()
