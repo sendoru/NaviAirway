@@ -39,6 +39,9 @@ def main():
                         help='File save directory')
     parser.add_argument('--image_info_csv_path', type=str, default='',
                         help='select *.csv file with image info such as image size')
+    parser.add_argument('--branch_penalty', type=float, default=16.)
+    parser.add_argument('--prune_threshold', type=float, default=0.1)
+    parser.add_argument('--use_bfs', action='store_true')
     
     if sys.argv.__len__() == 2:
         arg_filename_with_prefix = '@' + sys.argv[1]
@@ -68,6 +71,7 @@ def main():
     image_info = pd.DataFrame()
     if args.image_info_csv_path != '':
         image_info = pd.read_csv(args.image_info_csv_path)
+        image_info = image_info.set_index('path')
 
     generation_info = pd.DataFrame()
     csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
@@ -76,10 +80,10 @@ def main():
 
     for cur_seg_path in seg_path:
         try:
-            pxidim_info = image_info.iloc[cur_seg_path]
+            pixdim_info = image_info.loc[cur_seg_path]
         except:
             pixdim_info = None
-        generation_info = generation_info.append(break_and_save(cur_seg_path, save_path, pxidim_info), ignore_index=True)
+        generation_info = generation_info.append(break_and_save(cur_seg_path, save_path, generation_info, args, pixdim_info), ignore_index=True)
 
 if __name__ == "__main__":
     main()

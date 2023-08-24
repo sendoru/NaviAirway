@@ -1,3 +1,5 @@
+import time
+import datetime
 import numpy as np
 import torch
 import copy
@@ -12,6 +14,7 @@ import sys
 import skimage.transform as transform
 import skimage.io as io
 import argparse
+import logging
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -21,7 +24,7 @@ import plotly.express as px
 from func.model_arch import SegAirwayModel
 from func.model_run import get_image_and_label, get_crop_of_image_and_label_within_the_range_of_airway_foreground, \
 semantic_segment_crop_and_cat, dice_accuracy
-from func.post_process import post_process, add_broken_parts_to_the_result, find_end_point_of_the_airway_centerline, \
+from func.post_process import post_process, post_process_v2, add_broken_parts_to_the_result, find_end_point_of_the_airway_centerline, \
 get_super_vox, Cluster_super_vox, delete_fragments, get_outlayer_of_a_3d_shape, get_crop_by_pixel_val, fill_inner_hole
 from func.detect_tree import tree_detection
 from func.ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_one_CT_img, \
@@ -30,8 +33,14 @@ from func.airway_area_utils import *
 from func.break_and_save_utils import break_and_save
 
 def main():
+    # ---------- init configs ----------
     MIN_SLICE_COUNT = 256
+    cur_time_str = datetime.datetime.now().__str__().replace(' ', '_').replace(':', '-')
+    cur_time_str = cur_time_str[:cur_time_str.rfind('.')]
+    logging.basicConfig(filename=f"results/{cur_time_str}.log", level=logging.INFO)
     sys.setrecursionlimit(100000)
+
+    # ---------- argparsing ----------
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
     parser.add_argument('--weight_path', nargs='+', default=[],
@@ -46,6 +55,11 @@ def main():
                         help='Threshold probability value to decide if a voxel is included in airway or not')
     parser.add_argument('--segmentation_only', action='store_true',
                         help='Do not label generation if set')
+    # TODO add help
+    parser.add_argument('--branch_penalty', type=float, default=16.)
+    parser.add_argument('--prune_threshold', type=float, default=0.1)
+    parser.add_argument('--use_bfs', action='store_true')
+    parser.add_argument('--do_not_add_broken_parts',  action='store_true')
 
 
     if sys.argv.__len__() == 2:
@@ -78,7 +92,8 @@ def main():
         except:
             pass
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # ---------- setting up models and result file ----------
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     threshold = args.threshold
     
     generation_info = pd.DataFrame()
@@ -100,8 +115,14 @@ def main():
         checkpoint = torch.load(load_path)
         models[i].load_state_dict(checkpoint['model_state_dict'])
 
-    for image_path in image_path:
 
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/extended_segment/', exist_ok=True)
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment/', exist_ok=True)
+
+    # ---------- start infer ----------
+    for image_path in image_path:
+        logging.log(logging.INFO, f"Start model infer of {image_path} ...")
+        start_time = cur_time = time.time()
         # load and resize image if its scale is too different from train data
         raw_img = load_one_CT_img(image_path)
         orig_size = raw_img.shape
@@ -121,18 +142,43 @@ def main():
             
         seg_result_comb /= len(weight_path)
         seg_onehot_comb = np.array(seg_onehot_comb>0, dtype=int)
-        seg_processed,_ = post_process(seg_onehot_comb, threshold=threshold)
-        seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=2)
-        seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
-                                                    search_range = 10, delta_threshold = 0.05, min_threshold = 0.4)
+        logging.log(logging.INFO, f"Took {time.time() - cur_time:.3f}s for model infer")
 
-        os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment/', exist_ok=True)
+        '''
+        seg_processed,_ = post_process(seg_result_comb, threshold=threshold)
+        seg_slice_label_I, connection_dict_of_seg_I, number_of_branch_I, tree_length_I = tree_detection(seg_processed, search_range=1,  branch_penalty=0.)
+        seg_processed_II = add_broken_parts_to_the_result(connection_dict_of_seg_I, seg_result_comb, seg_processed, threshold = threshold,
+                                                    search_range = 10, delta_threshold = 0.05, min_threshold = threshold * 0.6)
+        '''
+        logging.log(logging.INFO, "Start postprocessing...")
+        time_start_sub = time.time()
+        seg_processed_II = post_process_v2(seg_onehot_comb, seg_result_comb, threshold=threshold, min_threshold=0.6*threshold, add_broken_parts= not args.do_not_add_broken_parts)
+        seg_processed_II = post_process_v2(seg_onehot_comb, seg_result_comb, threshold=threshold, min_threshold=0.6*threshold, add_broken_parts= not args.do_not_add_broken_parts)
+        logging.log(logging.INFO, f"Took {time.time() - time_start_sub:.3f}s for postprocessing")
+
+        print()
+        _, cc_num_1 = label(seg_processed_II, return_num=True, connectivity=1)
+        print("number of CC (connectivity=1):", cc_num_1)
+        _, cc_num_2 = label(seg_processed_II, return_num=True, connectivity=2)
+        print("number of CC (connectivity=2):", cc_num_2)
+        _, cc_num_3 = label(seg_processed_II, return_num=True, connectivity=3)
+        print("number of CC (connectivity=3):", cc_num_3)
+        logging.log(logging.INFO, f"number of CC: ({cc_num_1}, {cc_num_2}, {cc_num_3})")
+
+
+        seg_path = (save_path.rstrip('/').rstrip('\\')
+                        + '/extended_segment/'
+                        + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
+                        + "_segmentation.nii.gz")
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path)
+
+        seg_processed_II_orig_size = transform.resize(seg_processed_II, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
         seg_path = (save_path.rstrip('/').rstrip('\\')
                         + '/orig_segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path)
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II_orig_size.astype(np.uint8)), seg_path)
 
         has_pixdim = False
         pixdim = np.array([1., 1., 1.])
@@ -157,7 +203,12 @@ def main():
         pixdim_info.to_csv(pixdim_csv_path, index=False)
         
         if not args.segmentation_only:
-            generation_info = generation_info.append(break_and_save(seg_path, save_path, generation_info, cur_pixdim_info), ignore_index=True)
+            logging.log(logging.INFO, f"Starting generation labeling...")
+            cur_time = time.time()
+            generation_info = generation_info.append(break_and_save(seg_path, save_path, generation_info, args, cur_pixdim_info), ignore_index=True)
+            logging.log(logging.INFO, f"Took {time.time() - cur_time:3f}s for generation labeling")
+        logging.log(logging.INFO, f"Total time elapsed: {time.time() - start_time:.3f}")
+        logging.log(logging.INFO, '')
 
 if __name__ == "__main__":
     main()

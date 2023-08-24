@@ -39,6 +39,9 @@ def bfs(nodes, matrix, unvisited_node_no=-1):
 
     return ret
 
+# 이거 축별로 pixdim 다른거까지 생각해서 뭔가 하려면 다익스트라 돌려야되네
+# 아귀찮아
+
 def is_upside_down(onehot:np.ndarray):
     onehot_copied = onehot.copy()
     comp_counts = []
@@ -85,6 +88,54 @@ def get_voxel_by_segment_no(seg_result: np.ndarray, connection_dict: dict):
     ret = bfs(nodes, ret)
     return ret
 
+def get_voxel_by_generation_without_bfs(seg_result: np.ndarray, connection_dict: dict, pixdim_info=None, max_valid_gen=15):
+    ret = np.zeros_like(seg_result) - 1
+    voxel_coords = np.argwhere(seg_result == 1)
+    min_dist = np.ones((len(voxel_coords), max_valid_gen + 1)) * 1e6
+
+    if pixdim_info is None:
+        pixdim = np.array([1., 1., 1.])
+    else:
+        pixdim = np.array([pixdim_info['pixdim_z'], pixdim_info['pixdim_x'], pixdim_info['pixdim_y']])
+
+    for key, val in connection_dict.items():
+        if val['generation'] <= max_valid_gen:
+            gen = val['generation']
+        else:
+            gen = max_valid_gen
+        min_dist[:,gen] = np.minimum(min_dist[:,gen], np.linalg.norm((np.array(val['loc'], dtype=float) - voxel_coords) * pixdim, axis=1))
+    gen_no = np.argmin(min_dist, axis=1)
+    for idx, voxel_coord in enumerate(voxel_coords):
+        ret[voxel_coord[0]][voxel_coord[1]][voxel_coord[2]] = gen_no[idx]
+    
+    return ret
+
+def get_voxel_by_segment_no_without_bfs(seg_result: np.ndarray, connection_dict: dict, pixdim_info=None):
+    ret = np.zeros_like(seg_result) - 1
+    voxel_coords = np.argwhere(seg_result == 1)
+    max_segment_no = 0
+
+    for key, val in connection_dict.items():
+        max_segment_no = max(max_segment_no, val['segment_no'])
+    min_dist = np.ones((len(voxel_coords), max_segment_no + 1)) * 1e6
+
+    if pixdim_info is None:
+        pixdim = np.array([1., 1., 1.])
+    else:
+        pixdim = np.array([pixdim_info['pixdim_z'], pixdim_info['pixdim_x'], pixdim_info['pixdim_y']])
+
+    for key, val in connection_dict.items():
+        if val['segment_no'] <= max_segment_no:
+            gen = val['segment_no']
+        else:
+            gen = max_segment_no
+        min_dist[:,gen] = np.minimum(min_dist[:,gen], np.linalg.norm((np.array(val['loc'], dtype=float) - voxel_coords) * pixdim, axis=1))
+    gen_no = np.argmin(min_dist, axis=1)
+    for idx, voxel_coord in enumerate(voxel_coords):
+        ret[voxel_coord[0]][voxel_coord[1]][voxel_coord[2]] = gen_no[idx]
+    
+    return ret
+
 def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_segment_no: np.ndarray, connection_dict: dict):
     # TODO do something if more than two gen 2 airways are detected
     # 1. get bifuration centerline that branches gen 1 -> 2
@@ -126,22 +177,6 @@ def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_seg
     right_voxel *= voxel_by_generation
 
     return left_voxel, right_voxel
-
-def get_voxel_by_generation_without_bfs(seg_result: np.ndarray, connection_dict: dict, max_valid_gen=15):
-    ret = np.zeros_like(seg_result) - 1
-    voxel_coords = np.argwhere(seg_result == 1)
-    min_dist = np.ones((len(voxel_coords), max_valid_gen + 1)) * 1e6
-    for key, val in connection_dict.items():
-        if val['generation'] <= max_valid_gen:
-            gen = val['generation']
-        else:
-            gen = max_valid_gen
-        min_dist[:,gen] = np.minimum(min_dist[:,gen], np.linalg.norm(np.array(val['loc'], dtype=float) - voxel_coords, axis=1))
-    gen_no = np.argmin(min_dist, axis=1)
-    for idx, voxel_coord in enumerate(voxel_coords):
-        ret[voxel_coord[0]][voxel_coord[1]][voxel_coord[2]] = gen_no[idx]
-    
-    return ret
 
 def get_voxel_count_by_generation(voxel_by_generation: np.array, connection_dict: dict, max_valid_gen=15):
     # generation higher than 16 is likely to be noise, ignore them

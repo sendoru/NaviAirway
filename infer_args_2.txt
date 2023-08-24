@@ -3,11 +3,11 @@ checkpoint/checkpoint.pkl
 checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
-./data/Airway/EXACT09_3D/test
+./data/BE_CT_3D
 
 --select_dir
 --save_path
-results/segmentation_test_data_with_new_postprocess_2_test
+results/segmentation_real_data_with_new_postprocess_2_do_not_add_broken_parts
 --threshold
 0.5
---segmentation_only
+--do_not_add_broken_parts

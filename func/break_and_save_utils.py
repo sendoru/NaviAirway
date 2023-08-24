@@ -31,7 +31,7 @@ from .airway_area_utils import *
 # define some constatns
 CUTOFF_SLICE_COUNT = 10
 
-def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, pixdim_info=None):
+def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, args, pixdim_info=None):
     # read segmentation file
     print(f"Processing {seg_path}")
     seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path)).astype(int)
@@ -51,14 +51,17 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             get_only_largest_component(seg_processed_II_clean[last_nonzero - CUTOFF_SLICE_COUNT - i])
         
     # detect tree and prune
-    seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II_clean, search_range=32)
-    connection_dict_of_seg_II = prune_conneciton_dict(connection_dict_of_seg_II)
+    seg_slice_label_II, connection_dict_of_seg_II, number_of_branch_II, tree_length_II = tree_detection(seg_processed_II_clean, search_range=32, branch_penalty=args.branch_penalty, pixdim_info=pixdim_info)
+    connection_dict_of_seg_II = prune_conneciton_dict(connection_dict_of_seg_II, th_ratio=args.prune_threshold)
 
-    # assign voxel lavel
-    voxel_by_generation = get_voxel_by_generation(seg_processed_II, connection_dict_of_seg_II)
+    # assign voxel label and split left and right lung airway
+    if args.use_bfs:
+        voxel_by_generation = get_voxel_by_generation(seg_processed_II, connection_dict_of_seg_II)
+        voxel_by_segment_no = get_voxel_by_segment_no(seg_processed_II, connection_dict_of_seg_II)
+    else:
+        voxel_by_generation = get_voxel_by_generation_without_bfs(seg_processed_II, connection_dict_of_seg_II)
+        voxel_by_segment_no = get_voxel_by_segment_no_without_bfs(seg_processed_II, connection_dict_of_seg_II)
 
-    # split left and right lung airway
-    voxel_by_segment_no = get_voxel_by_segment_no(seg_processed_II, connection_dict_of_seg_II)
     voxel_by_generation_left, voxel_by_generation_right = get_left_and_right_lung_airway(voxel_by_generation, voxel_by_segment_no, connection_dict_of_seg_II)
 
     # revert upside down
@@ -71,12 +74,14 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
 
     # resize
     scale_to = None
-    if pixdim_info != None:
-        scale_to = [512, 512, pixdim_info['slice_count']]
+    if pixdim_info is not None:
+        scale_to = [pixdim_info['slice_count'], 512, 512]
     if scale_to is not None:
-        voxel_by_generation = np.round(transform.resize(voxel_by_generation.astype(float), scale_to, order=0)).astype(int)
-        seg_processed_II = np.round(transform.resize(seg_processed_II.astype(float), scale_to)).astype(int)
-        seg_processed_II_clean = np.round(transform.resize(seg_processed_II_clean.astype(float), scale_to)).astype(int)
+        voxel_by_generation = transform.resize(voxel_by_generation, scale_to, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        voxel_by_generation_left = transform.resize(voxel_by_generation_left, scale_to, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        voxel_by_generation_right = transform.resize(voxel_by_generation_right, scale_to, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        seg_processed_II = transform.resize(seg_processed_II, scale_to, mode="edge", preserve_range=True, anti_aliasing=False)
+        seg_processed_II_clean = transform.resize(seg_processed_II_clean, scale_to, mode="edge", preserve_range=True, anti_aliasing=False)
 
     # make genetion info
     if pixdim_info is None:
@@ -95,8 +100,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                 break
             else:
                 dict_row[str(j) + suffix] = voxel_count * voxel_size
-        dict_row['upside_down'] = upside_down
-        dict_row['has_pixdim_info'] = pixdim_info is not None
+    dict_row['upside_down'] = upside_down
+    dict_row['has_pixdim_info'] = pixdim_info is not None
     generation_info = generation_info.append(dict_row, ignore_index=True)
     
     for i in range(0, 10):

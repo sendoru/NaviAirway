@@ -1,7 +1,11 @@
+--branch_penalty
+8
+--prune_threshold
+0.05
 --seg_path
 results/segmentation_what_to_gen_10_sep_lr/orig_segment
 --save_path
-results/segmentation_real_data_sep_bp_16_th_010_without_bfs
+results/segmentation_real_data_sep_bp_8_th_005_without_bfs
 --image_info
 results/segmentation_what_to_gen_10_sep_lr/pixdim_info.csv
 --select_dir
