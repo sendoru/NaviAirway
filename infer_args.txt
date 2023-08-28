@@ -3,11 +3,29 @@ checkpoint/checkpoint.pkl
 checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
-./data/Airway/EXACT09_3D/test
+data/BE_CT_3D/00016852_20210909090621.nii.gz
+data/BE_CT_3D/00018315_20180717140715.nii.gz
+data/BE_CT_3D/00019999_20220408152720.nii.gz
+data/BE_CT_3D/00020026_20141203144955.nii.gz
+data/BE_CT_3D/00020369_20221221105133.nii.gz
+data/BE_CT_3D/00021261_20210816133555.nii.gz
+data/BE_CT_3D/00023645_20230206110316.nii.gz
+data/BE_CT_3D/00030912_20210331150212.nii.gz
+data/BE_CT_3D/00035508_20211206132552.nii.gz
+data/BE_CT_3D/00043065_20230410133213.nii.gz
+data/BE_CT_3D/00048706_20190822080904.nii.gz
+data/BE_CT_3D/00050603_20221011113339.nii.gz
+data/BE_CT_3D/00055135_20220823132207.nii.gz
+data/BE_CT_3D/00060285_20230411155237.nii.gz
+data/BE_CT_3D/00063151_20170817132401.nii.gz
+data/BE_CT_3D/00078605_20220914092612.nii.gz
+data/BE_CT_3D/00079483_20190314154908.nii.gz
+data/BE_CT_3D/00080968_20220216152144.nii.gz
+data/BE_CT_3D/00081329_20170731160358.nii.gz
+data/BE_CT_3D/00082785_20220721151831.nii.gz
+data/BE_CT_3D/00082897_20220830131905.nii.gz
 
---select_dir
 --save_path
-results/segmentation_test_data_with_new_postprocess_2_test
+results/segmentation_real_data_with_new_postprocess_2_230828
 --threshold
 0.5
---segmentation_only

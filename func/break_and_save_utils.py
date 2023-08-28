@@ -96,7 +96,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             if j == 0:
                 continue
             if j == 10:
-                dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
+                # dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
+                dict_row[str(j) + suffix] = voxel_count_by_generation[j] * voxel_size
                 break
             else:
                 dict_row[str(j) + suffix] = voxel_count * voxel_size
@@ -119,7 +120,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     
     # save segmentation with generatoin labeling
     voxel_by_generation[voxel_by_generation < 0] = 0
-    voxel_by_generation[voxel_by_generation > 10] = 10
+    # originally ... > 10] = 0
+    voxel_by_generation[voxel_by_generation > 10] = 0
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
@@ -128,7 +130,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                     + "_by_gen.nii.gz")
     
     voxel_by_generation_left[voxel_by_generation_left < 0] = 0
-    voxel_by_generation_left[voxel_by_generation_left > 10] = 10
+    # originally ... > 10] = 0
+    voxel_by_generation_left[voxel_by_generation_left > 10] = 0
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation_left.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
@@ -137,7 +140,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                     + "_by_gen_left.nii.gz")
     
     voxel_by_generation_right[voxel_by_generation_left < 0] = 0
-    voxel_by_generation_right[voxel_by_generation_left > 10] = 10
+    # originally ... > 10] = 0
+    voxel_by_generation_right[voxel_by_generation_left > 10] = 0
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation_right.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')

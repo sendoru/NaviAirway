@@ -166,19 +166,19 @@ def main():
         logging.log(logging.INFO, f"number of CC: ({cc_num_1}, {cc_num_2}, {cc_num_3})")
 
 
-        seg_path = (save_path.rstrip('/').rstrip('\\')
+        seg_path_extended = (save_path.rstrip('/').rstrip('\\')
                         + '/extended_segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path)
-
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path_extended)
         seg_processed_II_orig_size = transform.resize(seg_processed_II, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
-        seg_path = (save_path.rstrip('/').rstrip('\\')
+
+        seg_path_orig = (save_path.rstrip('/').rstrip('\\')
                         + '/orig_segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II_orig_size.astype(np.uint8)), seg_path)
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II_orig_size.astype(np.uint8)), seg_path_orig)
 
         has_pixdim = False
         pixdim = np.array([1., 1., 1.])
@@ -191,7 +191,7 @@ def main():
             pass
         
         cur_pixdim_info = {
-            'path': seg_path,
+            'path': seg_path_extended,
             'has_pixdim': has_pixdim,
             'pixdim_x': pixdim[0],
             'pixdim_y': pixdim[1],
@@ -205,7 +205,7 @@ def main():
         if not args.segmentation_only:
             logging.log(logging.INFO, f"Starting generation labeling...")
             cur_time = time.time()
-            generation_info = generation_info.append(break_and_save(seg_path, save_path, generation_info, args, cur_pixdim_info), ignore_index=True)
+            generation_info = generation_info.append(break_and_save(seg_path_extended, save_path, generation_info, args, cur_pixdim_info), ignore_index=True)
             logging.log(logging.INFO, f"Took {time.time() - cur_time:3f}s for generation labeling")
         logging.log(logging.INFO, f"Total time elapsed: {time.time() - start_time:.3f}")
         logging.log(logging.INFO, '')
