@@ -60,6 +60,7 @@ def main():
     parser.add_argument('--prune_threshold', type=float, default=0.1)
     parser.add_argument('--use_bfs', action='store_true')
     parser.add_argument('--do_not_add_broken_parts',  action='store_true')
+    parser.add_argument('--device', type=str, default='cuda')
 
 
     if sys.argv.__len__() == 2:
@@ -93,7 +94,7 @@ def main():
             pass
 
     # ---------- setting up models and result file ----------
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
     threshold = args.threshold
     
     generation_info = pd.DataFrame()

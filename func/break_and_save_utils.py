@@ -101,6 +101,18 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                 break
             else:
                 dict_row[str(j) + suffix] = voxel_count * voxel_size
+
+        dict_row['sum' + suffix] = voxel_count_by_generation[1:11].sum() * voxel_size
+
+        for j, voxel_count in enumerate(voxel_count_by_generation):
+            if j == 0:
+                continue
+            if j == 10:
+                # dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
+                dict_row[str(j) + suffix + '_ratio'] = voxel_count_by_generation[j] / voxel_count_by_generation[1:11].sum()
+                break
+            else:
+                dict_row[str(j) + suffix + '_ratio'] = voxel_count / voxel_count_by_generation[1:11].sum()
     dict_row['upside_down'] = upside_down
     dict_row['has_pixdim_info'] = pixdim_info is not None
     generation_info = generation_info.append(dict_row, ignore_index=True)
