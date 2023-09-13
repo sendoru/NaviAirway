@@ -74,16 +74,23 @@ def main():
         image_info = image_info.set_index('path')
 
     generation_info = pd.DataFrame()
-    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
-    if os.path.exists(csv_path):
-        generation_info = pd.read_csv(csv_path)
+    generation_info_csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
+    if os.path.exists(generation_info_csv_path):
+        generation_info = pd.read_csv(generation_info_csv_path)
+
+    trace_volume_by_gen_info = pd.DataFrame()
+    trace_volume_by_gen_info_csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "trace_volume_by_gen_info.csv"
+    if os.path.exists(trace_volume_by_gen_info_csv_path):
+        trace_volume_by_gen_info = pd.read_csv(trace_volume_by_gen_info_csv_path)
 
     for cur_seg_path in seg_path:
         try:
             pixdim_info = image_info.loc[cur_seg_path]
         except:
             pixdim_info = None
-        generation_info = generation_info.append(break_and_save(cur_seg_path, save_path, generation_info, args, pixdim_info), ignore_index=True)
+        break_and_save(cur_seg_path, save_path, generation_info, trace_volume_by_gen_info, args, pixdim_info)
+        generation_info = pd.read_csv(generation_info_csv_path)
+        trace_volume_by_gen_info = pd.read_csv(trace_volume_by_gen_info_csv_path)
 
 if __name__ == "__main__":
     main()

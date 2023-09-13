@@ -102,6 +102,11 @@ def main():
     if os.path.exists(csv_path):
         generation_info = pd.read_csv(csv_path)
 
+    trace_volume_by_gen_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "trace_volume_by_gen_info.csv"
+    if os.path.exists(csv_path):
+        trace_volume_by_gen_info = pd.read_csv(csv_path)
+
     pixdim_info = pd.DataFrame()
     pixdim_csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "pixdim_info.csv"
     if os.path.exists(pixdim_csv_path):
@@ -119,6 +124,8 @@ def main():
 
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/extended_segment/', exist_ok=True)
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment/', exist_ok=True)
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/extended_segment_before_postprocess/', exist_ok=True)
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment_before_postprocess/', exist_ok=True)
 
     # ---------- start infer ----------
     for image_path in image_path:
@@ -172,14 +179,24 @@ def main():
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path_extended)
-        seg_processed_II_orig_size = transform.resize(seg_processed_II, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        seg_path_extended_before_postprocess = (save_path.rstrip('/').rstrip('\\')
+                        + '/extended_segment_before_postprocess/'
+                        + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
+                        + "_segmentation.nii.gz")
+        sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb.astype(np.uint8)), seg_path_extended_before_postprocess)
 
+        seg_processed_II_orig_size = transform.resize(seg_processed_II, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        seg_onehot_comb_orig_size = transform.resize(seg_onehot_comb, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
         seg_path_orig = (save_path.rstrip('/').rstrip('\\')
                         + '/orig_segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II_orig_size.astype(np.uint8)), seg_path_orig)
+        seg_path_orig_before_postprocess = (save_path.rstrip('/').rstrip('\\')
+                        + '/orig_segment_before_postprocess/'
+                        + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
+                        + "_segmentation.nii.gz")
+        sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb_orig_size.astype(np.uint8)), seg_path_orig_before_postprocess)
 
         has_pixdim = False
         pixdim = np.array([1., 1., 1.])
@@ -206,7 +223,7 @@ def main():
         if not args.segmentation_only:
             logging.log(logging.INFO, f"Starting generation labeling...")
             cur_time = time.time()
-            generation_info = generation_info.append(break_and_save(seg_path_extended, save_path, generation_info, args, cur_pixdim_info), ignore_index=True)
+            generation_info = generation_info.append(break_and_save(seg_path_extended, save_path, generation_info, trace_volume_by_gen_info, args, cur_pixdim_info), ignore_index=True)
             logging.log(logging.INFO, f"Took {time.time() - cur_time:3f}s for generation labeling")
         logging.log(logging.INFO, f"Total time elapsed: {time.time() - start_time:.3f}")
         logging.log(logging.INFO, '')

@@ -1,7 +1,7 @@
 --seg_path
-results/segmentation_real_data_with_new_postprocess_2_test/orig_segment
+results/230830_1/extended_segment
 --save_path
-results/segmentation_real_data_with_new_postprocess_2_test_230824
+results/230830_1
 --image_info
-results/segmentation_real_data_with_new_postprocess_2_test/pixdim_info.csv
+results/230830_1/pixdim_info.csv
 --select_dir

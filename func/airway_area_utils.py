@@ -178,10 +178,21 @@ def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_seg
 
     return left_voxel, right_voxel
 
-def get_voxel_count_by_generation(voxel_by_generation: np.array, connection_dict: dict, max_valid_gen=15):
+def get_voxel_count_by_generation(voxel_by_generation: np.ndarray, connection_dict: dict, max_valid_gen=15):
     # generation higher than 16 is likely to be noise, ignore them
     ret = np.zeros(max_valid_gen + 1, int)
     for i in range(max_valid_gen + 1):
         ret[i] = (voxel_by_generation == i).astype(np.int32).sum()
+
+    aa = ret.sum()
     return ret
 
+def get_voxel_count_by_segment_no(voxel_by_segment_no: np.ndarray, segment_dict: dict):
+    # generation higher than 16 is likely to be noise, ignore them
+    max_segment_no = voxel_by_segment_no.max()
+    ret = np.zeros(max_segment_no + 1, int)
+    for i in range(max_segment_no + 1):
+        ret[i] = (voxel_by_segment_no == i).astype(np.int32).sum()
+
+    aa = ret.sum()
+    return ret

@@ -1,6 +1,6 @@
 --weight_path
-checkpoint/checkpoint_fine_tune.pkl
-checkpoint/checkpoint_semi_supervise_learning_fine_tune.pkl
+checkpoint/checkpoint.pkl
+checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
 data/230830_3
@@ -28,8 +28,8 @@ data/230830_3
 
 --select_dir
 --save_path
-results/230904_3
+results/230904_3_pred_with_orig_model_th_065
 --device
 cuda:2
 --threshold
-0.7
+0.65
