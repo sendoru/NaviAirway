@@ -147,6 +147,8 @@ def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_seg
             break
 
     # 2. 
+    if first_bifuration == {}:
+        return np.zeros_like(voxel_by_segment_no), np.zeros_like(voxel_by_segment_no)
     left_branch = first_bifuration['next'][0]
     right_branch = first_bifuration['next'][1]
     left_branch_segment_no = connection_dict[left_branch]['segment_no']

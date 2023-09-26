@@ -32,9 +32,11 @@ get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
 from func.break_and_save_utils import break_and_save
 
+np.int = int
+
 def main():
     # ---------- init configs ----------
-    MIN_SLICE_COUNT = 256
+    MIN_SLICE_COUNT = 200
     cur_time_str = datetime.datetime.now().__str__().replace(' ', '_').replace(':', '-')
     cur_time_str = cur_time_str[:cur_time_str.rfind('.')]
     logging.basicConfig(filename=f"results/{cur_time_str}.log", level=logging.INFO)
@@ -59,7 +61,7 @@ def main():
     parser.add_argument('--branch_penalty', type=float, default=16.)
     parser.add_argument('--prune_threshold', type=float, default=0.1)
     parser.add_argument('--use_bfs', action='store_true')
-    parser.add_argument('--do_not_add_broken_parts',  action='store_true')
+    parser.add_argument('--do_not_add_broken_parts', action='store_true')
     parser.add_argument('--device', type=str, default='cuda')
 
 
@@ -106,6 +108,11 @@ def main():
     csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "trace_volume_by_gen_info.csv"
     if os.path.exists(csv_path):
         trace_volume_by_gen_info = pd.read_csv(csv_path)
+
+    trace_slice_area_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "trace_slice_area_info.csv"
+    if os.path.exists(csv_path):
+        trace_slice_area_info = pd.read_csv(csv_path)
 
     pixdim_info = pd.DataFrame()
     pixdim_csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "pixdim_info.csv"
@@ -223,7 +230,7 @@ def main():
         if not args.segmentation_only:
             logging.log(logging.INFO, f"Starting generation labeling...")
             cur_time = time.time()
-            generation_info = generation_info.append(break_and_save(seg_path_extended, save_path, generation_info, trace_volume_by_gen_info, args, cur_pixdim_info), ignore_index=True)
+            break_and_save(seg_path_extended, save_path, generation_info, trace_volume_by_gen_info, trace_slice_area_info, args, cur_pixdim_info)
             logging.log(logging.INFO, f"Took {time.time() - cur_time:3f}s for generation labeling")
         logging.log(logging.INFO, f"Total time elapsed: {time.time() - start_time:.3f}")
         logging.log(logging.INFO, '')

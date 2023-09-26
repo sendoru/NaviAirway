@@ -1,7 +1,7 @@
 --seg_path
-results/230830_1/extended_segment
+results/230830_3/extended_segment
 --save_path
-results/230830_1
+results/230913_3
 --image_info
-results/230830_1/pixdim_info.csv
+results/230830_3/pixdim_info.csv
 --select_dir
