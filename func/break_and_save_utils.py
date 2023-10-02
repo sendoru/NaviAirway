@@ -153,12 +153,18 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             dict_row['z'] = val['endpoint_loc'][0]
             dict_row['endpoint_area'] = (seg_processed_II_extended_labeled[val['endpoint_loc'][0]] == seg_processed_II_extended_labeled[val['endpoint_loc'][0], val['endpoint_loc'][1], val['endpoint_loc'][2]]).sum() * pixdim_info['pixdim_x'] * pixdim_info['pixdim_y']
             dict_row['endpoint_diameter'] = 2 * np.sqrt(dict_row['endpoint_area'] / np.pi)
-            for i, val in enumerate(val['trace_voxel_count_by_gen']):
+
+            volume_sum = 0.
+            for i, cnt in enumerate(val['trace_voxel_count_by_gen']):
                 if i != 0:
-                    dict_row[f'{str(i)}'] = val * voxel_size
+                    dict_row[f'{str(i)}'] = cnt * voxel_size
                     if pixdim_info is not None:
                         dict_row[f'{str(i)}'] *= pixdim_info['slice_count'] / extended_image_height
+                    volume_sum += dict_row[f'{str(i)}']
             
+            for i, cnt in enumerate(val['trace_voxel_count_by_gen']):
+                if i != 0:
+                    dict_row[f'{str(i)}_ratio'] = dict_row[f'{str(i)}'] / volume_sum
 
             # trace_volume_by_gen_info = pd.DataFrame(trace_volume_by_gen_info.append(dict_row, ignore_index=True))
             trace_volume_by_gen_info = trace_volume_by_gen_info.append(dict_row, ignore_index=True)
@@ -175,6 +181,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             while True:
                 dict_row = dict_row_base.copy()
                 cur_point_loc = connection_dict_of_seg_II[cur_point]['loc']
+                dict_row['generation'] = connection_dict_of_seg_II[cur_point]['generation']
                 dict_row['x'] = cur_point_loc[1]
                 dict_row['y'] = cur_point_loc[2]
                 dict_row['z'] = cur_point_loc[0]

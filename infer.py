@@ -34,6 +34,12 @@ from func.break_and_save_utils import break_and_save
 
 np.int = int
 
+def convert_arg_line_to_args(arg_line):
+    for arg in arg_line.split():
+        if not arg.strip():
+            continue
+        yield str(arg)
+
 def main():
     # ---------- init configs ----------
     MIN_SLICE_COUNT = 200
@@ -45,6 +51,7 @@ def main():
     # ---------- argparsing ----------
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
     parser.add_argument('--weight_path', nargs='+', default=[],
                         help="weight file(s) to use for prediction")
     parser.add_argument('--image_path', nargs='+', default=[],
