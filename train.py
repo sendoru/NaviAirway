@@ -14,9 +14,9 @@ import gc
 
 # settings
 # ----------
-save_path = 'checkpoint/checkpoint_sample_2.pkl'
+save_path = 'checkpoint/checkpoint_semi_supervise_learning_fine_tune.pkl'
 need_resume = True
-load_path = 'checkpoint/checkpoint.pkl'
+load_path = 'checkpoint/checkpoint_semi_supervise_learning.pkl'
 path_dataset_info_more_focus_on_airways_of_low_generation = \
     "dataset_info/train_dataset_info_EXACT09_LIDC_IDRI_crops_128_extended_more_high_gen_1_new"
 path_dataset_info_more_focus_on_airways_of_high_generation = \

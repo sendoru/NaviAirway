@@ -3,11 +3,13 @@ checkpoint/checkpoint.pkl
 checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
-./data/BE_CT_3D
+/mnt/disk1/sendol/data/distortion_3D_resized_ord_2
 
 --select_dir
+
 --save_path
-results/segmentation_real_data_with_new_postprocess_2_do_not_add_broken_parts
---threshold
-0.5
---do_not_add_broken_parts
+results/distortion_3D_resized_231129_ord_2
+
+--device cuda:3
+
+--threshold 0.4

@@ -1,7 +1,7 @@
 --seg_path
-results/segmentation_what_to_gen_10_sep_lr/orig_segment
+data/EXACT09_3D/train_label_orig
 --save_path
-results/segmentation_real_data_sep_bp_16_th_010_without_bfs
+results/EXACT09_3D_train_gt_231012
 --image_info
-results/segmentation_what_to_gen_10_sep_lr/pixdim_info.csv
+results/EXACT09_3D_train_gt_231012/pixdim_info.csv
 --select_dir

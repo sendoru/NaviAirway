@@ -1,10 +1,6 @@
---weight_path
-checkpoint/checkpoint.pkl
-checkpoint/checkpoint_semi_supervise_learning.pkl
-
---image_path
-./data/BE_CT_3D
-
+--weight_path checkpoint/checkpoint.pkl checkpoint/checkpoint_semi_supervise_learning.pkl
+--image_path data/230830_3
 --select_dir
---save_path
-results/segmentation_what_to_gen_10_sep_lr
+--save_path results/230904_3_pred_with_orig_model_th_065
+--device cuda:2
+--threshold 0.6

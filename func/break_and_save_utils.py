@@ -11,6 +11,7 @@ import os
 import sys
 import skimage.io as io
 import skimage.transform as transform
+from skimage import measure
 import argparse
 
 import matplotlib as mpl
@@ -23,7 +24,7 @@ from .model_run import get_image_and_label, get_crop_of_image_and_label_within_t
 semantic_segment_crop_and_cat, dice_accuracy
 from .post_process import post_process, add_broken_parts_to_the_result, find_end_point_of_the_airway_centerline, \
 get_super_vox, Cluster_super_vox, delete_fragments, get_outlayer_of_a_3d_shape, get_crop_by_pixel_val, fill_inner_hole
-from .detect_tree import tree_detection, prune_conneciton_dict
+from .detect_tree import tree_detection, prune_conneciton_dict,get_trace_voxel_count_by_gen_from_root, get_segment_dict
 from .ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_one_CT_img, \
 get_df_of_centerline, get_df_of_line_of_centerline
 from .airway_area_utils import *
@@ -31,10 +32,24 @@ from .airway_area_utils import *
 # define some constatns
 CUTOFF_SLICE_COUNT = 10
 
-def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, args, pixdim_info=None):
+def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame, trace_volume_by_gen_info: pd.DataFrame, trace_slice_area_info: pd.DataFrame, args, pixdim_info=None):
+
+    generation_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv"
+    if os.path.exists(csv_path):
+        generation_info = pd.read_csv(csv_path)
+
+    trace_volume_by_gen_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "trace_volume_by_gen_info.csv"
+    if os.path.exists(csv_path):
+        trace_volume_by_gen_info = pd.read_csv(csv_path)
+
+    trace_slice_area_info = pd.DataFrame()
+
     # read segmentation file
     print(f"Processing {seg_path}")
     seg_processed_II = sitk.GetArrayFromImage(sitk.ReadImage(seg_path)).astype(int)
+    extended_image_height = seg_processed_II.shape[0]
 
     # fix unpside down
     upside_down = is_upside_down(seg_processed_II)
@@ -64,6 +79,11 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
 
     voxel_by_generation_left, voxel_by_generation_right = get_left_and_right_lung_airway(voxel_by_generation, voxel_by_segment_no, connection_dict_of_seg_II)
 
+    # get segment dict and find voxel count by generation on each trace starting from root
+    segment_dict = get_segment_dict(connection_dict_of_seg_II, pixdim_info)
+    voxel_count_by_segment_no = get_voxel_count_by_segment_no(voxel_by_segment_no, segment_dict)
+    segment_dict = get_trace_voxel_count_by_gen_from_root(segment_dict, voxel_count_by_segment_no)
+
     # revert upside down
     if upside_down:
         voxel_by_generation = voxel_by_generation[-1::-1]
@@ -71,9 +91,14 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
         voxel_by_generation_right = voxel_by_generation_right[-1::-1]
         seg_processed_II = seg_processed_II[-1::-1]
         seg_processed_II_clean = seg_processed_II_clean[-1::-1]
+        for key, val in segment_dict.items():
+            segment_dict[key]['endpoint_loc'][0] = seg_processed_II.shape[0] - segment_dict[key]['endpoint_loc'][0] - 1
+        for key, val in connection_dict_of_seg_II.items():
+            connection_dict_of_seg_II[key]['loc'][0] = seg_processed_II.shape[0] - connection_dict_of_seg_II[key]['loc'][0] - 1
 
     # resize
     scale_to = None
+    seg_processed_II_extended = seg_processed_II.copy()
     if pixdim_info is not None:
         scale_to = [pixdim_info['slice_count'], 512, 512]
     if scale_to is not None:
@@ -83,7 +108,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
         seg_processed_II = transform.resize(seg_processed_II, scale_to, mode="edge", preserve_range=True, anti_aliasing=False)
         seg_processed_II_clean = transform.resize(seg_processed_II_clean, scale_to, mode="edge", preserve_range=True, anti_aliasing=False)
 
-    # make genetion info
+    # make genetion info dataframe
     if pixdim_info is None:
         voxel_size = 1
     else:
@@ -96,13 +121,104 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             if j == 0:
                 continue
             if j == 10:
-                dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
+                # dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
+                dict_row[str(j) + suffix] = voxel_count_by_generation[j] * voxel_size
                 break
             else:
                 dict_row[str(j) + suffix] = voxel_count * voxel_size
+
+        dict_row['sum' + suffix] = voxel_count_by_generation[1:11].sum() * voxel_size
+
+        for j, voxel_count in enumerate(voxel_count_by_generation):
+            if j == 0:
+                continue
+            if j == 10:
+                # dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
+                dict_row[str(j) + suffix + '_ratio'] = voxel_count_by_generation[j] / voxel_count_by_generation[1:11].sum()
+                break
+            else:
+                dict_row[str(j) + suffix + '_ratio'] = voxel_count / voxel_count_by_generation[1:11].sum()
     dict_row['upside_down'] = upside_down
     dict_row['has_pixdim_info'] = pixdim_info is not None
     generation_info = generation_info.append(dict_row, ignore_index=True)
+
+    # make trace_volume_by_gen info dataframe
+    # TODO 저기 10이라는 숫자 변수로 바꿔서 뭔가뭔가 하게
+    seg_processed_II_extended_labeled = np.zeros_like(seg_processed_II_extended)
+    for i in range(len(seg_processed_II_extended)):
+        seg_processed_II_extended_labeled[i] = measure.label(seg_processed_II_extended[i], connectivity=1)
+
+    for key, val in segment_dict.items():
+        if val['generation'] == 10 or (val['generation'] < 10 and len(val['next']) == 0):
+            dict_row = {'path' : seg_path}
+            dict_row['highest_generation'] = val['generation']
+            dict_row['x'] = val['endpoint_loc'][1]
+            dict_row['y'] = val['endpoint_loc'][2]
+            dict_row['z'] = val['endpoint_loc'][0]
+            dict_row['endpoint_area'] = (seg_processed_II_extended_labeled[val['endpoint_loc'][0]] == seg_processed_II_extended_labeled[val['endpoint_loc'][0], val['endpoint_loc'][1], val['endpoint_loc'][2]]).sum() * pixdim_info['pixdim_x'] * pixdim_info['pixdim_y']
+            dict_row['endpoint_diameter'] = 2 * np.sqrt(dict_row['endpoint_area'] / np.pi)
+
+            volume_sum = 0.
+            for i, cnt in enumerate(val['trace_voxel_count_by_gen']):
+                if i != 0:
+                    dict_row[f'{str(i)}'] = cnt * voxel_size
+                    if pixdim_info is not None:
+                        dict_row[f'{str(i)}'] *= pixdim_info['slice_count'] / extended_image_height
+                    volume_sum += dict_row[f'{str(i)}']
+            
+            for i, cnt in enumerate(val['trace_voxel_count_by_gen']):
+                if i != 0:
+                    dict_row[f'{str(i)}_ratio'] = dict_row[f'{str(i)}'] / volume_sum
+
+            # trace_volume_by_gen_info = pd.DataFrame(trace_volume_by_gen_info.append(dict_row, ignore_index=True))
+            trace_volume_by_gen_info = trace_volume_by_gen_info.append(dict_row, ignore_index=True)
+
+    for key, val in segment_dict.items():
+        if val['generation'] == 10 or (val['generation'] < 10 and len(val['next']) == 0):
+            dict_row_base = {'path' : seg_path}
+            dict_row_base['highest_generation'] = val['generation']
+            dict_row_base['endpoint_x'] = val['endpoint_loc'][1]
+            dict_row_base['endpoint_y'] = val['endpoint_loc'][2]
+            dict_row_base['endpoint_z'] = val['endpoint_loc'][0]
+            cur_point = val['endpoint']
+            dist_from_endpoint = 0
+            while True:
+                dict_row = dict_row_base.copy()
+                cur_point_loc = connection_dict_of_seg_II[cur_point]['loc']
+                dict_row['generation'] = connection_dict_of_seg_II[cur_point]['generation']
+                dict_row['x'] = cur_point_loc[1]
+                dict_row['y'] = cur_point_loc[2]
+                dict_row['z'] = cur_point_loc[0]
+                dict_row['dist_from_endpoint'] = dist_from_endpoint
+                dict_row['slice_area'] = \
+                    (seg_processed_II_extended_labeled[cur_point_loc[0]] == seg_processed_II_extended_labeled[cur_point_loc[0], cur_point_loc[1], cur_point_loc[2]]).sum() \
+                        * pixdim_info['pixdim_x'] * pixdim_info['pixdim_y']
+                dict_row['slice_diameter'] = 2 * np.sqrt(dict_row['slice_area'] / np.pi)
+
+                trace_slice_area_info = trace_slice_area_info.append(dict_row, ignore_index=True)
+
+                if len(connection_dict_of_seg_II[cur_point]['before']) == 0 or connection_dict_of_seg_II[cur_point]['before'][0] == 0:
+                    break
+                cur_point = connection_dict_of_seg_II[cur_point]['before'][0]
+                dist_from_endpoint += 1
+    
+    # save generation info csv
+    generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv", index=False)
+    print(generation_info)
+
+    # save trace volume csv
+    trace_volume_by_gen_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "trace_volume_by_gen_info.csv", index=False)
+    print(trace_volume_by_gen_info)
+
+    # trace_slice_area_info
+    seg_file_name = seg_path
+    seg_file_name.replace('\\', '/')
+    seg_file_name = seg_file_name.split('/')[-1]
+    seg_file_name = seg_file_name.split('.')[0]
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + f"/trace_slice_area_info/", exist_ok=True)
+    trace_slice_area_info.to_csv(save_path.rstrip('/').rstrip('\\') + f"/trace_slice_area_info/" + f"trace_slice_area_info_{seg_file_name}.csv", index=False)
+    print(trace_slice_area_info)
+
     
     for i in range(0, 10):
         os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/', exist_ok=True)
@@ -112,14 +228,11 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                         + '/high_gens/'
                         + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                         + f"_gen_{i + 1}_or_higher.nii.gz")
-    
-    # save generation info csv
-    generation_info.to_csv(save_path.rstrip('/').rstrip('\\') + '/' + "generation_info.csv", index=False)
-    print(generation_info)
-    
+
     # save segmentation with generatoin labeling
     voxel_by_generation[voxel_by_generation < 0] = 0
-    voxel_by_generation[voxel_by_generation > 10] = 10
+    # originally ... > 10] = 0
+    voxel_by_generation[voxel_by_generation > 10] = 0
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
@@ -128,7 +241,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                     + "_by_gen.nii.gz")
     
     voxel_by_generation_left[voxel_by_generation_left < 0] = 0
-    voxel_by_generation_left[voxel_by_generation_left > 10] = 10
+    # originally ... > 10] = 0
+    voxel_by_generation_left[voxel_by_generation_left > 10] = 0
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation_left.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
@@ -137,7 +251,8 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                     + "_by_gen_left.nii.gz")
     
     voxel_by_generation_right[voxel_by_generation_left < 0] = 0
-    voxel_by_generation_right[voxel_by_generation_left > 10] = 10
+    # originally ... > 10] = 0
+    voxel_by_generation_right[voxel_by_generation_left > 10] = 0
     os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation_right.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')

@@ -2,10 +2,13 @@
 checkpoint/checkpoint.pkl
 
 --image_path
-./data/Airway/EXACT09_3D/test
+/mnt/disk1/sendol/data/distortion_3D_resized
 
 --select_dir
---threshold 0.5
 
 --save_path
-results/segmentation_what
+results/distortion_3D_resized_231129
+
+--device cuda:2
+
+--threshold 0.6

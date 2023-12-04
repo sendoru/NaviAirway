@@ -1,5 +1,6 @@
 # tree detection V3
 import gc
+from typing import Optional
 import numpy as np
 from skimage.morphology import skeletonize_3d
 from skimage.measure import label as label_regions
@@ -66,7 +67,7 @@ def get_connection_dict(center_dict, nearby_dict, pixdim_info=None, branch_penal
     if pixdim_info is None:
         pixdim = np.array([1., 1., 1.])
     else:
-        pixdim = np.array([pixdim_info['pixdim_x'], pixdim_info['pixdim_y'], pixdim_info['pixdim_z']])
+        pixdim = np.array([pixdim_info['pixdim_z'], pixdim_info['pixdim_x'], pixdim_info['pixdim_y']])
     
     # init connection dict
     connection_dict = {}
@@ -238,12 +239,21 @@ def get_tree_length(connection_dict, is_3d_len=True):
 def get_segment_dict(connection_dict: dict, pixdim_info=None) -> dict:
     segment_dict = {}
     for key, val in connection_dict.items():
-        segment_dict[val["segment_no"]] = {
-                "before": 0,
-                "next": [],
-                "length": 0.,
-                "pruned": False,
-            }
+        if not val["segment_no"] in segment_dict.keys():
+            segment_dict[val["segment_no"]] = {
+                    "points": [],
+                    "before": 0,
+                    "next": [],
+                    "length": 0.,
+                    "pruned": False,
+                    "generation": 0,
+                    "endpoint": 0,
+                    "endpoint_loc": [0, 0, 0]
+                }
+        segment_dict[val["segment_no"]]["points"].append(key)
+        if val["number_of_next"] != 1:
+            segment_dict[val["segment_no"]]["endpoint_loc"] = val["loc"].copy()
+            segment_dict[val["segment_no"]]["endpoint"] = key
     if pixdim_info is None:
         pixdim = np.array([1., 1., 1.])
     else:
@@ -252,6 +262,7 @@ def get_segment_dict(connection_dict: dict, pixdim_info=None) -> dict:
     def dfs(current_label: int) -> None:
         nonlocal connection_dict, segment_dict
         current_segment_no = connection_dict[current_label]["segment_no"]
+        segment_dict[current_segment_no]["generation"] = connection_dict[current_label]["generation"]
         if connection_dict[current_label]["number_of_next"] > 0:
             for next_label in connection_dict[current_label]["next"]:
                 next_segment_no = connection_dict[next_label]["segment_no"]
@@ -286,7 +297,7 @@ def get_subtree_length(segment_dict: dict) -> dict:
 
 # 3. if a subtree of a segment has too low weight (compared to the sum of weights of its siblings)
 # remove the segment and its subtree
-def prune_segment(segment_dict: dict, th_ratio: float = 0.05) -> dict:
+def prune_segment(segment_dict: dict, th_ratio: float = 0.05, max_gen: Optional[int] = None) -> dict:
     def prune_subtree(current_segment):
         nonlocal segment_dict
         if segment_dict[current_segment]["pruned"]:
@@ -303,14 +314,19 @@ def prune_segment(segment_dict: dict, th_ratio: float = 0.05) -> dict:
         siblings_subtree_length_sum = segment_dict[parent]["subtree_length"] - segment_dict[parent]["length"]
         if segment_dict[segment]["subtree_length"] < th_ratio * siblings_subtree_length_sum:
             prune_subtree(segment)
-    
+
+    if max_gen is not None:
+        for segment, val in segment_dict.items():
+            if segment_dict[segment]["generation"] > max_gen:
+                segment_dict[segment]["pruned"] = True
+
     return segment_dict
 
 # 4. reconstruct tree using pruned segment info
-def prune_conneciton_dict(connection_dict: dict, th_ratio: float = 0.05):
+def prune_conneciton_dict(connection_dict: dict, th_ratio: float = 0.05, max_gen: Optional[int] = None):
     segment_dict = get_segment_dict(connection_dict)
     segment_dict = get_subtree_length(segment_dict)
-    segment_dict = prune_segment(segment_dict, th_ratio=th_ratio)
+    segment_dict = prune_segment(segment_dict, th_ratio=th_ratio, max_gen=max_gen)
 
     for current_label, val in connection_dict.items():
         next_labels_list = []
@@ -356,6 +372,23 @@ def prune_conneciton_dict(connection_dict: dict, th_ratio: float = 0.05):
     find_generation_and_node_no(current_label=list(connection_dict.keys())[0], generation=1)
     gc.collect()
     return connection_dict
+
+def get_trace_voxel_count_by_gen_from_root(segment_dict: dict, voxel_count_by_segment_no: np.ndarray,max_vaild_gen=10) -> dict:
+    
+    vol = np.zeros(max_vaild_gen + 1, dtype=float)
+    def dfs(cur_segment: int, prev_vol: np.ndarray, cur_depth=1) -> None:
+        nonlocal segment_dict
+        cur_vol = prev_vol.copy()
+        cur_vol[cur_depth] += voxel_count_by_segment_no[cur_segment]
+        segment_dict[cur_segment]["trace_voxel_count_by_gen"] = cur_vol
+        if cur_depth >= max_vaild_gen:
+            return
+        for next_segment in segment_dict[cur_segment]["next"]:
+            dfs(next_segment, cur_vol, cur_depth + 1)
+
+    dfs(list(segment_dict.keys())[0], vol)
+    return segment_dict
+
 
 
 # # tree detection V2
