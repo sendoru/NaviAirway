@@ -27,10 +27,17 @@ from func.ulti import save_obj, load_obj, get_and_save_3d_img_for_one_case,load_
 get_df_of_centerline, get_df_of_line_of_centerline
 from func.airway_area_utils import *
 
+def convert_arg_line_to_args(arg_line):
+    for arg in arg_line.split():
+        if not arg.strip():
+            continue
+        yield str(arg)
+
 def main():
     sys.setrecursionlimit(123456)
     parser = argparse.ArgumentParser(description='Inference tool', fromfile_prefix_chars='@',
                                      conflict_handler='resolve')
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
     parser.add_argument('--seg_path', nargs='+', default=[],
                         help='Segmentation file(s) to use for prediction (type:*.nii.gz)')
     parser.add_argument('--select_dir', action='store_true',
@@ -83,12 +90,17 @@ def main():
     if os.path.exists(trace_volume_by_gen_info_csv_path):
         trace_volume_by_gen_info = pd.read_csv(trace_volume_by_gen_info_csv_path)
 
+    trace_slice_area_info = pd.DataFrame()
+    csv_path = save_path.rstrip('/').rstrip('\\') + '/' + "trace_slice_area_info.csv"
+    if os.path.exists(csv_path):
+        trace_slice_area_info = pd.read_csv(csv_path)
+
     for cur_seg_path in seg_path:
         try:
             pixdim_info = image_info.loc[cur_seg_path]
         except:
             pixdim_info = None
-        break_and_save(cur_seg_path, save_path, generation_info, trace_volume_by_gen_info, args, pixdim_info)
+        break_and_save(cur_seg_path, save_path, generation_info, trace_volume_by_gen_info, trace_slice_area_info, args, pixdim_info)
         generation_info = pd.read_csv(generation_info_csv_path)
         trace_volume_by_gen_info = pd.read_csv(trace_volume_by_gen_info_csv_path)
 

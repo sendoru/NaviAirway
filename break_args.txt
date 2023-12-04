@@ -1,7 +1,7 @@
 --seg_path
-results/230830_3/extended_segment
+data/EXACT09_3D/train_label_orig
 --save_path
-results/230913_3
+results/EXACT09_3D_train_gt_231012
 --image_info
-results/230830_3/pixdim_info.csv
+results/EXACT09_3D_train_gt_231012/pixdim_info.csv
 --select_dir

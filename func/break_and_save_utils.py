@@ -91,16 +91,20 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
         voxel_by_generation_right = voxel_by_generation_right[-1::-1]
         seg_processed_II = seg_processed_II[-1::-1]
         seg_processed_II_clean = seg_processed_II_clean[-1::-1]
+        for key, val in segment_dict.items():
+            segment_dict[key]['endpoint_loc'][0] = seg_processed_II.shape[0] - segment_dict[key]['endpoint_loc'][0] - 1
+        for key, val in connection_dict_of_seg_II.items():
+            connection_dict_of_seg_II[key]['loc'][0] = seg_processed_II.shape[0] - connection_dict_of_seg_II[key]['loc'][0] - 1
 
     # resize
     scale_to = None
+    seg_processed_II_extended = seg_processed_II.copy()
     if pixdim_info is not None:
         scale_to = [pixdim_info['slice_count'], 512, 512]
     if scale_to is not None:
         voxel_by_generation = transform.resize(voxel_by_generation, scale_to, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
         voxel_by_generation_left = transform.resize(voxel_by_generation_left, scale_to, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
         voxel_by_generation_right = transform.resize(voxel_by_generation_right, scale_to, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
-        seg_processed_II_extended = seg_processed_II.copy()
         seg_processed_II = transform.resize(seg_processed_II, scale_to, mode="edge", preserve_range=True, anti_aliasing=False)
         seg_processed_II_clean = transform.resize(seg_processed_II_clean, scale_to, mode="edge", preserve_range=True, anti_aliasing=False)
 

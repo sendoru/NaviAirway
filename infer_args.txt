@@ -3,12 +3,12 @@ checkpoint/checkpoint.pkl
 checkpoint/checkpoint_semi_supervise_learning.pkl
 
 --image_path
-data/distortion_3D_dense
+/mnt/disk1/sendol/data/distortion_3D_resized
 
 --select_dir
 
 --save_path
-results/distortion_3D_dense_2
+results/distortion_3D_resized_231129
 
 --device cuda:2
 

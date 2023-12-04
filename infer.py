@@ -87,13 +87,13 @@ def main():
     if not args.select_dir:
         for ph in args.image_path:
             if ph != ''and ph[0] != '#':
-                image_path.append(ph.lstrip("./"))
+                image_path.append(ph.lstrip("./") if ph[0] == '.' else ph)
     else:
         for dir in args.image_path:
             if dir != ''and dir[0] != '#':
                 file_lists = sorted(os.listdir(dir))
                 for ph in file_lists:
-                    image_path.append(os.path.join(dir, ph).lstrip("./"))
+                    image_path.append(os.path.join(dir, ph).lstrip("./") if dir[0] == '.' else os.path.join(dir, ph))
 
     save_path = args.save_path
     if not os.path.exists(save_path):
