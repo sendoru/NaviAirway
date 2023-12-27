@@ -386,6 +386,9 @@ def get_trace_voxel_count_by_gen_from_root(segment_dict: dict, voxel_count_by_se
         for next_segment in segment_dict[cur_segment]["next"]:
             dfs(next_segment, cur_vol, cur_depth + 1)
 
+    for key in segment_dict.keys():
+        segment_dict[key]["trace_voxel_count_by_gen"] = vol.copy()
+        
     dfs(list(segment_dict.keys())[0], vol)
     return segment_dict
 

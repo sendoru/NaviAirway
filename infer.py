@@ -135,11 +135,8 @@ def main():
         checkpoint = torch.load(load_path)
         models[i].load_state_dict(checkpoint['model_state_dict'])
 
-
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/extended_segment/', exist_ok=True)
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment/', exist_ok=True)
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/extended_segment_before_postprocess/', exist_ok=True)
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/orig_segment_before_postprocess/', exist_ok=True)
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/segment/', exist_ok=True)
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/segment_before_postprocess/', exist_ok=True)
 
     # ---------- start infer ----------
     for image_path in image_path:
@@ -148,8 +145,8 @@ def main():
         # load and resize image if its scale is too different from train data
         raw_img = load_one_CT_img(image_path)
         orig_size = raw_img.shape
-        if orig_size[0] < MIN_SLICE_COUNT:
-            raw_img = transform.resize(raw_img.astype(float), (MIN_SLICE_COUNT, orig_size[1], orig_size[2])).astype(int)
+        # if orig_size[0] < MIN_SLICE_COUNT:
+        #     raw_img = transform.resize(raw_img.astype(float), (MIN_SLICE_COUNT, orig_size[1], orig_size[2])).astype(int)
 
         # make prob map and onehot segment
         seg_result_comb = np.zeros(raw_img.shape, dtype=float)
@@ -191,29 +188,30 @@ def main():
         logging.log(logging.INFO, f"number of CC: ({cc_num_1}, {cc_num_2}, {cc_num_3})")
 
 
-        seg_path_extended = (save_path.rstrip('/').rstrip('\\')
-                        + '/extended_segment/'
-                        + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
-                        + "_segmentation.nii.gz")
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path_extended)
-        seg_path_extended_before_postprocess = (save_path.rstrip('/').rstrip('\\')
-                        + '/extended_segment_before_postprocess/'
-                        + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
-                        + "_segmentation.nii.gz")
-        sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb.astype(np.uint8)), seg_path_extended_before_postprocess)
+        # seg_path_extended = (save_path.rstrip('/').rstrip('\\')
+        #                 + '/extended_segment/'
+        #                 + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
+        #                 + "_segmentation.nii.gz")
+        # sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path_extended)
+        # seg_path_extended_before_postprocess = (save_path.rstrip('/').rstrip('\\')
+        #                 + '/extended_segment_before_postprocess/'
+        #                 + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
+        #                 + "_segmentation.nii.gz")
+        # sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb.astype(np.uint8)), seg_path_extended_before_postprocess)
 
-        seg_processed_II_orig_size = transform.resize(seg_processed_II, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
-        seg_onehot_comb_orig_size = transform.resize(seg_onehot_comb, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        # seg_processed_II_orig_size = transform.resize(seg_processed_II, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+        # seg_onehot_comb_orig_size = transform.resize(seg_onehot_comb, orig_size, order=0, mode="edge", preserve_range=True, anti_aliasing=False)
+
         seg_path_orig = (save_path.rstrip('/').rstrip('\\')
-                        + '/orig_segment/'
+                        + '/segment/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II_orig_size.astype(np.uint8)), seg_path_orig)
+        sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path_orig)
         seg_path_orig_before_postprocess = (save_path.rstrip('/').rstrip('\\')
-                        + '/orig_segment_before_postprocess/'
+                        + '/segment_before_postprocess/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
-        sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb_orig_size.astype(np.uint8)), seg_path_orig_before_postprocess)
+        sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb.astype(np.uint8)), seg_path_orig_before_postprocess)
 
         has_pixdim = False
         pixdim = np.array([1., 1., 1.])
@@ -226,7 +224,7 @@ def main():
             pass
         
         cur_pixdim_info = {
-            'path': seg_path_extended,
+            'path': seg_path_orig,
             'has_pixdim': has_pixdim,
             'pixdim_x': pixdim[0],
             'pixdim_y': pixdim[1],
@@ -240,7 +238,7 @@ def main():
         if not args.segmentation_only:
             logging.log(logging.INFO, f"Starting generation labeling...")
             cur_time = time.time()
-            break_and_save(seg_path_extended, save_path, generation_info, trace_volume_by_gen_info, trace_slice_area_info, args, cur_pixdim_info)
+            break_and_save(seg_path_orig, save_path, generation_info, trace_volume_by_gen_info, trace_slice_area_info, args, cur_pixdim_info)
             logging.log(logging.INFO, f"Took {time.time() - cur_time:3f}s for generation labeling")
         logging.log(logging.INFO, f"Total time elapsed: {time.time() - start_time:.3f}")
         logging.log(logging.INFO, '')

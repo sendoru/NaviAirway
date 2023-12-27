@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 import torch
 import copy
@@ -77,10 +78,11 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
         voxel_by_generation = get_voxel_by_generation_without_bfs(seg_processed_II, connection_dict_of_seg_II)
         voxel_by_segment_no = get_voxel_by_segment_no_without_bfs(seg_processed_II, connection_dict_of_seg_II)
 
-    voxel_by_generation_left, voxel_by_generation_right = get_left_and_right_lung_airway(voxel_by_generation, voxel_by_segment_no, connection_dict_of_seg_II)
+    segment_dict = get_segment_dict(connection_dict_of_seg_II, pixdim_info)
+
+    voxel_by_generation_left, voxel_by_generation_right = get_left_and_right_lung_airway(voxel_by_generation, voxel_by_segment_no, connection_dict_of_seg_II, segment_dict)
 
     # get segment dict and find voxel count by generation on each trace starting from root
-    segment_dict = get_segment_dict(connection_dict_of_seg_II, pixdim_info)
     voxel_count_by_segment_no = get_voxel_count_by_segment_no(voxel_by_segment_no, segment_dict)
     segment_dict = get_trace_voxel_count_by_gen_from_root(segment_dict, voxel_count_by_segment_no)
 
@@ -140,6 +142,43 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                 dict_row[str(j) + suffix + '_ratio'] = voxel_count / voxel_count_by_generation[1:11].sum()
     dict_row['upside_down'] = upside_down
     dict_row['has_pixdim_info'] = pixdim_info is not None
+
+    # 23-12-20 요청사항
+    # --------------------------------
+    last_branch_observed = 0
+    for suffix, voxel in zip(('_total', '_l', '_r'), (voxel_by_generation, voxel_by_generation_left, voxel_by_generation_right)):
+        voxel_count_by_generation = get_voxel_count_by_generation(voxel, connection_dict_of_seg_II).astype(int)
+
+        if suffix == '_total':
+            for j, voxel_count in enumerate(voxel_count_by_generation):
+                if j == 0:
+                    continue
+                else:
+                    if voxel_count_by_generation[j+1:11].sum() < 0.001:
+                        last_branch_observed = j
+                        break
+            dict_row['last_branch_observed'] = last_branch_observed
+        branch_count = 0
+
+        if suffix == '_total':
+            for key, val in segment_dict.items():
+                if val['generation'] == last_branch_observed:
+                    branch_count += 1
+        elif suffix == '_l':
+            for key, val in segment_dict.items():
+                if val['generation'] == last_branch_observed and val['side'] == 'left':
+                    branch_count += 1
+        elif suffix == '_r':
+            for key, val in segment_dict.items():
+                if val['generation'] == last_branch_observed and val['side'] == 'right':
+                    branch_count += 1
+
+        dict_row["no_of_bronchlole_at_the_last_branch" + suffix] = branch_count
+        dict_row["vol_of_bronchlole_at_the_last_branch" + suffix] = voxel_count_by_generation[last_branch_observed] * voxel_size
+
+    # --------------------------------
+        
+
     generation_info = generation_info.append(dict_row, ignore_index=True)
 
     # make trace_volume_by_gen info dataframe
@@ -155,7 +194,11 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             dict_row['x'] = val['endpoint_loc'][1]
             dict_row['y'] = val['endpoint_loc'][2]
             dict_row['z'] = val['endpoint_loc'][0]
-            dict_row['endpoint_area'] = (seg_processed_II_extended_labeled[val['endpoint_loc'][0]] == seg_processed_II_extended_labeled[val['endpoint_loc'][0], val['endpoint_loc'][1], val['endpoint_loc'][2]]).sum() * pixdim_info['pixdim_x'] * pixdim_info['pixdim_y']
+            if pixdim_info is not None:
+                one_pixel_area = pixdim_info['pixdim_x'] * pixdim_info['pixdim_y']
+            else:
+                one_pixel_area = 1.
+            dict_row['endpoint_area'] = (seg_processed_II_extended_labeled[val['endpoint_loc'][0]] == seg_processed_II_extended_labeled[val['endpoint_loc'][0], val['endpoint_loc'][1], val['endpoint_loc'][2]]).sum() * one_pixel_area
             dict_row['endpoint_diameter'] = 2 * np.sqrt(dict_row['endpoint_area'] / np.pi)
 
             volume_sum = 0.
@@ -219,7 +262,13 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     trace_slice_area_info.to_csv(save_path.rstrip('/').rstrip('\\') + f"/trace_slice_area_info/" + f"trace_slice_area_info_{seg_file_name}.csv", index=False)
     print(trace_slice_area_info)
 
-    
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/centerline_dicts/', exist_ok=True)
+    centerline_dict_path = \
+        save_path.rstrip('/').rstrip('\\') + '/centerline_dicts/' + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:] + '.pkl'
+    with open(centerline_dict_path, 'wb') as f:
+        pickle.dump(connection_dict_of_seg_II, f)
+
+
     for i in range(0, 10):
         os.makedirs(save_path.rstrip('/').rstrip('\\') + '/high_gens/', exist_ok=True)
         seg_high_gen = (voxel_by_generation >= i).astype(np.uint8)
@@ -233,30 +282,28 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     voxel_by_generation[voxel_by_generation < 0] = 0
     # originally ... > 10] = 0
     voxel_by_generation[voxel_by_generation > 10] = 0
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
+    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/segment_by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
-                    + '/by_gen/'
+                    + '/segment_by_gen/'
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                     + "_by_gen.nii.gz")
     
     voxel_by_generation_left[voxel_by_generation_left < 0] = 0
     # originally ... > 10] = 0
     voxel_by_generation_left[voxel_by_generation_left > 10] = 0
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation_left.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
-                    + '/by_gen/'
+                    + '/segment_by_gen/'
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                     + "_by_gen_left.nii.gz")
     
     voxel_by_generation_right[voxel_by_generation_left < 0] = 0
     # originally ... > 10] = 0
     voxel_by_generation_right[voxel_by_generation_left > 10] = 0
-    os.makedirs(save_path.rstrip('/').rstrip('\\') + '/by_gen/', exist_ok=True)
     sitk.WriteImage(sitk.GetImageFromArray(voxel_by_generation_right.astype(np.uint8)),
                     save_path.rstrip('/').rstrip('\\')
-                    + '/by_gen/'
+                    + '/segment_by_gen/'
                     + seg_path[seg_path.rfind('/') + 1:seg_path.find('.')][seg_path.rfind('\\') + 1:]
                     + "_by_gen_right.nii.gz")
     

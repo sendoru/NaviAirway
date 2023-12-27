@@ -136,7 +136,7 @@ def get_voxel_by_segment_no_without_bfs(seg_result: np.ndarray, connection_dict:
     
     return ret
 
-def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_segment_no: np.ndarray, connection_dict: dict):
+def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_segment_no: np.ndarray, connection_dict: dict, segment_dict: Optional[dict]=None):
     # TODO do something if more than two gen 2 airways are detected
     # 1. get bifuration centerline that branches gen 1 -> 2
 
@@ -148,7 +148,10 @@ def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_seg
 
     # 2. 
     if first_bifuration == {}:
+        for key in segment_dict.keys():
+                segment_dict[key]['side'] = ''
         return np.zeros_like(voxel_by_segment_no), np.zeros_like(voxel_by_segment_no)
+    
     left_branch = first_bifuration['next'][0]
     right_branch = first_bifuration['next'][1]
     left_branch_segment_no = connection_dict[left_branch]['segment_no']
@@ -164,6 +167,15 @@ def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_seg
     left_voxel = ((voxel_by_segment_no >= left_branch_segment_no) * (voxel_by_segment_no < right_branch_segment_no)).astype(np.int32)
     right_voxel = (voxel_by_segment_no >= right_branch_segment_no).astype(np.int32)
 
+    if segment_dict is not None:
+        for key in segment_dict.keys():
+            if key >= right_branch_segment_no:
+                segment_dict[key]['side'] = 'right'
+            elif key >= left_branch_segment_no:
+                segment_dict[key]['side'] = 'left'
+            else:
+                segment_dict[key]['side'] = ''
+
     # 3. determine which branch is left one
     # use average of 2(z)-axis coord in each branch
     left_voxel_coord = np.argwhere(left_voxel)
@@ -173,6 +185,15 @@ def get_left_and_right_lung_airway(voxel_by_generation: np.ndarray, voxel_by_seg
 
     if left_voxel_avg_coord > right_voxel_avg_coord:
         left_voxel, right_voxel = right_voxel, left_voxel
+
+        if segment_dict is not None:
+            for key in segment_dict.keys():
+                if segment_dict[key]['side'] == 'right':
+                    segment_dict[key]['side'] = 'left'
+                elif segment_dict[key]['side'] == 'left':
+                    segment_dict[key]['side'] = 'right'
+                else:
+                    segment_dict[key]['side'] = ''
 
     # 4. assign genetaion_no for each
     left_voxel *= voxel_by_generation
