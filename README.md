@@ -223,6 +223,14 @@ highest_generation|정수|검출된 끝점의 generation|
 |1_r_ratio, 2_r_ratio, ... , 10_r_ratio|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (오른쪽 기도 전체 부피)|
 |upside_down|정수|segmentation의 위아래가 뒤집어진 상태로 주어졌는지를 나타내는 값. 디버깅용으로 사용되었으며, 임상적 분석에서는 의미가 없습니다.
 |has_pixdim_info|정수|voxel 간 spacing 정보가 제공되었는지에 대한 정보.|
+|last_branch_observed|정수|감지된 branch 중 generation이 제일 높은 branch의 generation|
+|no_of_bronchlole_at_the_last_branch_total|정수|generation이 ```last_branch_observed```와 같은 branch의 갯수|
+|vol_of_bronchlole_at_the_last_branch_total|실수|generation이 ```last_branch_observed```와 같은 branch의 부피 총합|
+|no_of_bronchlole_at_the_last_branch_l|정수|왼쪽 폐에서 generation이 ```last_branch_observed```와 같은 branch의 갯수|
+|vol_of_bronchlole_at_the_last_branch_l|실수|왼쪽 페에서 generation이 ```last_branch_observed```와 같은 branch의 부피 총합|
+|no_of_bronchlole_at_the_last_branch_r|정수|오른쪽 폐에서 generation이 ```last_branch_observed```와 같은 branch의 갯수|
+|vol_of_bronchlole_at_the_last_branch_r|실수|오른쪽 페에서 generation이 ```last_branch_observed```와 같은 branch의 부피 총합|
+
 
 원래는 generation 11 이상에 해당되는 voxel의 부피는 ```10+```라는 열로 generation 10에 해당되는 voxel의 부피와 합쳐서 출력했었습니다. 하지만 너무 높은 generation로 분류된 voxel은 노이즈일 가능성이 크고 실제 분석에 방해가 될 수도 있기 때문에 출력 결과에서 아예 제외해 달라는 요청이 있었습니다. 이에 따라 generation 11 이상에 해당되는 voxel은 아예 없는 것으로 치고 ```generation_info.csv```를 만들었으며, ```sum``` 열에도 generation 11 이상으로 분류된 voxel의 부피는 포함되어 있지 않습니다.
 
