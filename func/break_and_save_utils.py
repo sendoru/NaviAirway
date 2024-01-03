@@ -140,6 +140,23 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
                 break
             else:
                 dict_row['_'.join((str(j), 'volume_ratio', suffix))] = voxel_count / voxel_count_by_generation[1:11].sum()
+
+        branch_count = [0 for _ in range(11)]
+
+        if suffix == 'total':
+            for key, val in segment_dict.items():
+                branch_count[val['generation']] += 1
+        elif suffix == 'l':
+            for key, val in segment_dict.items():
+                if val['side'] == 'left':
+                    branch_count[val['generation']] += 1
+        elif suffix == 'r':
+            for key, val in segment_dict.items():
+                if val['side'] == 'right':
+                    branch_count[val['generation']] += 1
+
+        for j in range(1, 11):
+            dict_row['_'.join((str(j), 'branch_count', suffix))] = branch_count[j]
     dict_row['upside_down'] = upside_down
     dict_row['has_pixdim_info'] = pixdim_info is not None
 
