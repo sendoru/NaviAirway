@@ -178,6 +178,14 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
 
     # --------------------------------
         
+    # 24-01-03 요청사항 (1) 
+    # --------------------------------
+    voxel_count_by_generation_left = get_voxel_count_by_generation(voxel_by_generation_left, connection_dict_of_seg_II).astype(int)
+    dict_row["last_branch_observed_l"] = (voxel_count_by_generation_left > 0).astype(int).sum() + 1
+    voxel_count_by_generation_right = get_voxel_count_by_generation(voxel_by_generation_right, connection_dict_of_seg_II).astype(int)
+    dict_row["last_branch_observed_r"] = (voxel_count_by_generation_right > 0).astype(int).sum() + 1
+    
+    # --------------------------------
 
     generation_info = generation_info.append(dict_row, ignore_index=True)
 
