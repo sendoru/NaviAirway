@@ -117,29 +117,29 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
         voxel_size = pixdim_info['pixdim_x'] * pixdim_info['pixdim_y'] * pixdim_info['pixdim_z']
     dict_row = {'path' : seg_path}
 
-    for suffix, voxel in zip(('', '_l', '_r'), (voxel_by_generation, voxel_by_generation_left, voxel_by_generation_right)):
+    for suffix, voxel in zip(('total', 'l', 'r'), (voxel_by_generation, voxel_by_generation_left, voxel_by_generation_right)):
         voxel_count_by_generation = get_voxel_count_by_generation(voxel, connection_dict_of_seg_II).astype(int)
         for j, voxel_count in enumerate(voxel_count_by_generation):
             if j == 0:
                 continue
             if j == 10:
                 # dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
-                dict_row[str(j) + suffix] = voxel_count_by_generation[j] * voxel_size
+                dict_row['_'.join((str(j), 'volume', suffix))] = voxel_count_by_generation[j] * voxel_size
                 break
             else:
-                dict_row[str(j) + suffix] = voxel_count * voxel_size
+                dict_row['_'.join((str(j), 'volume', suffix))] = voxel_count * voxel_size
 
-        dict_row['sum' + suffix] = voxel_count_by_generation[1:11].sum() * voxel_size
+        dict_row['volume_sum_' + suffix] = voxel_count_by_generation[1:11].sum() * voxel_size
 
         for j, voxel_count in enumerate(voxel_count_by_generation):
             if j == 0:
                 continue
             if j == 10:
                 # dict_row[str(j) + suffix] = voxel_count_by_generation[j:].sum() * voxel_size
-                dict_row[str(j) + suffix + '_ratio'] = voxel_count_by_generation[j] / voxel_count_by_generation[1:11].sum()
+                dict_row['_'.join((str(j), 'volume_ratio', suffix))] = voxel_count_by_generation[j] / voxel_count_by_generation[1:11].sum()
                 break
             else:
-                dict_row[str(j) + suffix + '_ratio'] = voxel_count / voxel_count_by_generation[1:11].sum()
+                dict_row['_'.join((str(j), 'volume_ratio', suffix))] = voxel_count / voxel_count_by_generation[1:11].sum()
     dict_row['upside_down'] = upside_down
     dict_row['has_pixdim_info'] = pixdim_info is not None
 

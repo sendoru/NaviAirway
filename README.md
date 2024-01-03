@@ -212,15 +212,15 @@ highest_generation|정수|검출된 끝점의 generation|
 |열 이름|자료형|설명|
 |-------|-------|---|
 |path|문자열|generation labeling을 진행한 airway segmentation 파일의 경로
-|1, 2, 3, ... , 10|실수|기도 전체에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
-|sum|실수|기도 전체에서 1~10번째 generation에 해당하는 기도 부피의 합|
-|1_ratio, 2_ratio, ... , 10_ratio|실수|기도 전체에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (기도 전체 부피)|
-|1_l, 2_l, 3_l, ... , 10_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
-|sum_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도 부피의 합|
-|1_l_ratio, 2_l_ratio, ... , 10_l_ratio|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (왼쪽 기도 전체 부피)|
-|1_r, 2_r, 3_r, ... , 10_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
-|sum_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도 부피의 합|
-|1_r_ratio, 2_r_ratio, ... , 10_r_ratio|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (오른쪽 기도 전체 부피)|
+|1_volume_total, 2_volume_total, ... , 10_volume_total|실수|기도 전체에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
+|volume_sum_total|실수|기도 전체에서 1~10번째 generation에 해당하는 기도 부피의 합|
+|1_volume_ratio_total, 2_volume_ratio_total, ... , 10_volume_ratio_total|실수|기도 전체에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (기도 전체 부피)|
+|1_volume_l, 2_volume_l, ... , 10_volume_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
+|volume_sum_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도 부피의 합|
+|1_volume_ratio_l, 2_volume_ratio_l, ... , 10_volume_ratio_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (왼쪽 기도 전체 부피)|
+|1_volume_r, 2_volume_r, ... , 10_volume_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
+|volume_sum_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도 부피의 합|
+|1_volume_ratio_r, 2_volume_ratio_r, ... , 10_volume_ratio_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (오른쪽 기도 전체 부피)|
 |upside_down|정수|segmentation의 위아래가 뒤집어진 상태로 주어졌는지를 나타내는 값. 디버깅용으로 사용되었으며, 임상적 분석에서는 의미가 없습니다.
 |has_pixdim_info|정수|voxel 간 spacing 정보가 제공되었는지에 대한 정보.|
 |last_branch_observed|정수|감지된 branch 중 generation이 제일 높은 branch의 generation|
