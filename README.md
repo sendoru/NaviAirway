@@ -215,12 +215,15 @@ highest_generation|정수|검출된 끝점의 generation|
 |1_volume_total, 2_volume_total, ... , 10_volume_total|실수|기도 전체에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
 |volume_sum_total|실수|기도 전체에서 1~10번째 generation에 해당하는 기도 부피의 합|
 |1_volume_ratio_total, 2_volume_ratio_total, ... , 10_volume_ratio_total|실수|기도 전체에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (기도 전체 부피)|
+|1_branch_count_total, 2_branch_count_total, ... , 10_branch_count_total|실수|기도 전체에서 1~10번째 generation에 해당하는 branch의 갯수|
 |1_volume_l, 2_volume_l, ... , 10_volume_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
 |volume_sum_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도 부피의 합|
 |1_volume_ratio_l, 2_volume_ratio_l, ... , 10_volume_ratio_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (왼쪽 기도 전체 부피)|
+|1_branch_count_l, 2_branch_count_l, ... , 10_branch_count_l|실수|왼쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 branch의 갯수|
 |1_volume_r, 2_volume_r, ... , 10_volume_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 부피 (mm^3)|
 |volume_sum_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도 부피의 합|
 |1_volume_ratio_r, 2_volume_ratio_r, ... , 10_volume_ratio_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 기도의 상대적인 부피 <br> (generation별 부피) / (오른쪽 기도 전체 부피)|
+|1_branch_count_r, 2_branch_count_r, ... , 10_branch_count_r|실수|오른쪽 폐 부분의 기도에서 1~10번째 generation에 해당하는 branch의 갯수|
 |upside_down|정수|segmentation의 위아래가 뒤집어진 상태로 주어졌는지를 나타내는 값. 디버깅용으로 사용되었으며, 임상적 분석에서는 의미가 없습니다.
 |has_pixdim_info|정수|voxel 간 spacing 정보가 제공되었는지에 대한 정보.|
 |last_branch_observed|정수|감지된 branch 중 generation이 제일 높은 branch의 generation|
