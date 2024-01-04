@@ -145,14 +145,15 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
 
         if suffix == 'total':
             for key, val in segment_dict.items():
-                branch_count[val['generation']] += 1
+                if branch_count[val['generation']] <= 10:
+                    branch_count[val['generation']] += 1
         elif suffix == 'l':
             for key, val in segment_dict.items():
-                if val['side'] == 'left':
+                if val['side'] == 'left' and branch_count[val['generation']] <= 10:
                     branch_count[val['generation']] += 1
         elif suffix == 'r':
             for key, val in segment_dict.items():
-                if val['side'] == 'right':
+                if val['side'] == 'right' and branch_count[val['generation']] <= 10:
                     branch_count[val['generation']] += 1
 
         for j in range(1, 11):
