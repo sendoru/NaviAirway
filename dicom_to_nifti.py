@@ -109,7 +109,7 @@ for disease_name in os.listdir(dicom_dir_path):
     if os.path.isdir(disease_path):
         for patient_name in os.listdir(disease_path):
             patient_path = os.path.join(disease_path, patient_name)
-            if os.path.isdir(patient_name):
+            if os.path.isdir(patient_path):
                 for date in os.listdir(patient_path):
                     test_case_dir = os.path.join(patient_path, date)
                     if os.path.isdir(test_case_dir):
@@ -181,5 +181,3 @@ for i, test_case_name in enumerate(test_case_names):
 
     gc.collect()
     print()
-
-
