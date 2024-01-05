@@ -12,3 +12,4 @@ plotly==5.15.0
 torch==2.0.0
 torchio==0.19.1
 torchvision==0.15.1
+dicom2nifti
