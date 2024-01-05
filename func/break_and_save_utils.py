@@ -141,23 +141,37 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             else:
                 dict_row['_'.join((str(j), 'volume_ratio', suffix))] = voxel_count / voxel_count_by_generation[1:11].sum()
 
+        # Updated
+        # --------------------------
         branch_count = [0 for _ in range(11)]
+        branch_length = [0. for _ in range(11)]
 
         if suffix == 'total':
             for key, val in segment_dict.items():
                 if val['generation'] <= 10:
                     branch_count[val['generation']] += 1
+                    branch_length[val['generation']] += val['length']
         elif suffix == 'l':
             for key, val in segment_dict.items():
                 if val['side'] == 'left' and val['generation'] <= 10:
                     branch_count[val['generation']] += 1
+                    branch_length[val['generation']] += val['length']
         elif suffix == 'r':
             for key, val in segment_dict.items():
                 if val['side'] == 'right' and val['generation'] <= 10:
                     branch_count[val['generation']] += 1
+                    branch_length[val['generation']] += val['length']
 
         for j in range(1, 11):
             dict_row['_'.join((str(j), 'branch_count', suffix))] = branch_count[j]
+
+        for j in range(1, 11):
+            if branch_length[j] < 0.0001:
+                dict_row['_'.join((str(j), 'branch_area', suffix))] = float('nan')
+            else:
+                dict_row['_'.join((str(j), 'branch_area', suffix))] = voxel_count_by_generation[j] * voxel_size / branch_length[j]
+
+        # --------------------------
     dict_row['upside_down'] = upside_down
     dict_row['has_pixdim_info'] = pixdim_info is not None
 
