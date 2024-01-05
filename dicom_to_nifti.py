@@ -144,7 +144,7 @@ for i, test_case_name in enumerate(test_case_names):
     elif len(fnames) == 1:
         print("Detected single DICOM image series. Converting to NiFTi...")
         source_path = os.path.join(temp_save_path, fnames[0])
-        dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_'))
+        dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
         shutil.copy(source_path, dest_path)
 
     else:
@@ -167,11 +167,11 @@ for i, test_case_name in enumerate(test_case_names):
         if choice == 0:
             for j, fname in enumerate(fnames):
                 source_path = os.path.join(temp_save_path, fname)
-                dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_') + '_' + fname)
+                dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_') + '_' + fname) + '.nii.gz'
                 shutil.copy(source_path, dest_path)
         else:
             source_path = os.path.join(temp_save_path, fnames[choice - 1])
-            dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_'))
+            dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
             shutil.copy(source_path, dest_path)
 
     if len(fnames) != 0:
