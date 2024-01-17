@@ -96,24 +96,21 @@ if not USE_GUI_PROMPT:
     while True:
         save_path = input("Enter save directory path: ")
         if os.path.isdir(save_path):
-            save_path = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + "_nifti")
-            os.makedirs(save_path, exist_ok=True)
+            # save_path = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + "_nifti")
+            # os.makedirs(save_path, exist_ok=True)
             break
         else:
             print("Invalid path. Try again.")
 
 # %%
 test_case_names = []
-for disease_name in os.listdir(dicom_dir_path):
-    disease_path = os.path.join(dicom_dir_path, disease_name)
-    if os.path.isdir(disease_path):
-        for patient_name in os.listdir(disease_path):
-            patient_path = os.path.join(disease_path, patient_name)
-            if os.path.isdir(patient_path):
-                for date in os.listdir(patient_path):
-                    test_case_dir = os.path.join(patient_path, date)
-                    if os.path.isdir(test_case_dir):
-                        test_case_names.append(os.path.join(disease_name, patient_name, date))
+for patient_name in os.listdir(dicom_dir_path):
+    patient_path = os.path.join(dicom_dir_path, patient_name)
+    if os.path.isdir(patient_path):
+        for date in os.listdir(patient_path):
+            test_case_dir = os.path.join(patient_path, date)
+            if os.path.isdir(test_case_dir):
+                test_case_names.append(os.path.join(patient_name, date))
 
 test_case_names.sort()
 if '.DS_Store' in test_case_names:
@@ -144,7 +141,10 @@ for i, test_case_name in enumerate(test_case_names):
     elif len(fnames) == 1:
         print("Detected single DICOM image series. Converting to NiFTi...")
         source_path = os.path.join(temp_save_path, fnames[0])
-        dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
+        dest_dict = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
+        if not os.path.exists(dest_dict):
+            os.makedirs(dest_dict)
+        dest_path = os.path.join(dest_dict, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
         shutil.copy(source_path, dest_path)
 
     else:
@@ -167,11 +167,17 @@ for i, test_case_name in enumerate(test_case_names):
         if choice == 0:
             for j, fname in enumerate(fnames):
                 source_path = os.path.join(temp_save_path, fname)
-                dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_') + '_' + fname) + '.nii.gz'
+                dest_dict = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
+                if not os.path.exists(dest_dict):
+                    os.makedirs(dest_dict)
+                dest_path = os.path.join(dest_dict, test_case_name.replace(os.path.sep, '_') + '_' + fname) + '.nii.gz'
                 shutil.copy(source_path, dest_path)
         else:
             source_path = os.path.join(temp_save_path, fnames[choice - 1])
-            dest_path = os.path.join(save_path, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
+            dest_dict = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
+            if not os.path.exists(dest_dict):
+                os.makedirs(dest_dict)
+            dest_path = os.path.join(dest_dict, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
             shutil.copy(source_path, dest_path)
 
     if len(fnames) != 0:
@@ -181,3 +187,5 @@ for i, test_case_name in enumerate(test_case_names):
 
     gc.collect()
     print()
+
+print("Done!")
