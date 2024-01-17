@@ -31,6 +31,8 @@ if USE_GUI_PROMPT:
 from skimage import transform
 import matplotlib.pyplot as plt
 
+# %%
+d2n_settings.disable_validate_slice_increment()
 
 # %%
 dicom_dir_path = "./data/Airway/distortion"
