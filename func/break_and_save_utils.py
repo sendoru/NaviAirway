@@ -223,6 +223,48 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     
     # --------------------------------
 
+    # 24-01-20 요청사항
+    # 으아아악
+    for key in segment_dict.keys():
+        segment_dict[key]["volume"] = voxel_size * (voxel_count_by_segment_no == key).astype(int).sum()
+        segment_dict[key]["area"] = segment_dict[key]["volume"] / segment_dict[key]["length"]
+        segment_dict[key]["diameter"] = 2 * np.sqrt(segment_dict[key]["area"]) / np.pi
+
+    for gen in range(1, 11):
+        for diameter_threshold in (2, 3):
+            # diameter 2mm 이하 구간의 구간 갯수
+            col_name_segment_count = f"segment_count_smaller_than_{diameter_threshold}mm_gen_{gen}"
+            col_name_average_volume = f"segment_average_volume_smaller_than_{diameter_threshold}mm_gen_{gen}"
+            col_name_average_area = f"segment_average_area_smaller_than_{diameter_threshold}mm_gen_{gen}"
+            col_name_average_diameter = f"segment_average_diameter_smaller_than_{diameter_threshold}mm_gen_{gen}"
+            segment_count = 0
+            volume_sum = 0.
+            length_sum = 0.
+            
+            for key, val in segment_dict.items():
+                if val["generation"] == gen and val["diameter"] <= diameter_threshold:
+                    segment_count += 1
+                    volume_sum += val["volume"]
+                    length_sum += val["length"]
+
+            if segment_count != 0:
+                average_volume = volume_sum / segment_count
+                average_area = volume_sum / length_sum
+                average_diameter = 2 * np.sqrt(average_area) / np.pi
+            else :
+                average_volume = float('nan')
+                average_area = float('nan')
+                average_diameter = float('nan')
+
+            dict_row[col_name_segment_count] = segment_count
+            dict_row[col_name_average_volume] = average_volume
+            dict_row[col_name_average_area] = average_area
+            dict_row[col_name_average_diameter] = average_diameter
+
+
+
+    
+
     generation_info = generation_info.append(dict_row, ignore_index=True)
 
     # make trace_volume_by_gen info dataframe
