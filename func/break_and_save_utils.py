@@ -118,7 +118,7 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
 
     dict_row = {
         'path' : seg_path,
-        'id' : os.path.split(seg_path)[0].split('.')[0]
+        'id' : os.path.split(seg_path)[-1].split('.')[0]
     }
 
     for suffix, voxel in zip(('total', 'l', 'r'), (voxel_by_generation, voxel_by_generation_left, voxel_by_generation_right)):
@@ -226,9 +226,9 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
     # 24-01-20 요청사항
     # 으아아악
     for key in segment_dict.keys():
-        segment_dict[key]["volume"] = voxel_size * (voxel_count_by_segment_no == key).astype(int).sum()
+        segment_dict[key]["volume"] = voxel_size * voxel_count_by_segment_no[key]
         segment_dict[key]["area"] = segment_dict[key]["volume"] / segment_dict[key]["length"]
-        segment_dict[key]["diameter"] = 2 * np.sqrt(segment_dict[key]["area"]) / np.pi
+        segment_dict[key]["diameter"] = 2 * np.sqrt(segment_dict[key]["area"] / np.pi)
 
     for gen in range(1, 11):
         for diameter_threshold in (2, 3):
@@ -260,9 +260,6 @@ def break_and_save(seg_path: str, save_path: str, generation_info: pd.DataFrame,
             dict_row[col_name_average_volume] = average_volume
             dict_row[col_name_average_area] = average_area
             dict_row[col_name_average_diameter] = average_diameter
-
-
-
     
 
     generation_info = generation_info.append(dict_row, ignore_index=True)
