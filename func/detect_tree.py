@@ -266,7 +266,7 @@ def get_segment_dict(connection_dict: dict, pixdim_info=None) -> dict:
         if connection_dict[current_label]["number_of_next"] > 0:
             for next_label in connection_dict[current_label]["next"]:
                 next_segment_no = connection_dict[next_label]["segment_no"]
-                dir_vec = np.array(connection_dict[current_label]["loc"]) - np.array(connection_dict[next_label]["loc"]) * pixdim
+                dir_vec = (np.array(connection_dict[current_label]["loc"]) - np.array(connection_dict[next_label]["loc"])) * pixdim
                 segment_dict[next_segment_no]["length"] += np.sqrt(np.sum((dir_vec)**2))
                 if connection_dict[current_label]["is_bifurcation"]:
                     segment_dict[current_segment_no]["next"].append(next_segment_no)
