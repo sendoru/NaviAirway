@@ -207,11 +207,28 @@ def main():
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         sitk.WriteImage(sitk.GetImageFromArray(seg_processed_II.astype(np.uint8)), seg_path_orig)
+
+        img_file = nib.load(image_path)
+        img_header = img_file.header
+        img_affine = img_file.affine
+
+        seg_nib_file = nib.load(seg_path_orig)
+        seg_nib_file_header = seg_nib_file.header
+        seg_nib_file_header['pixdim'] = img_header['pixdim']
+        seg_nib_file = nib.Nifti1Image(seg_processed_II.astype(np.uint8), img_affine, seg_nib_file_header)
+        nib.save(seg_nib_file, seg_path_orig)
+
         seg_path_orig_before_postprocess = (save_path.rstrip('/').rstrip('\\')
                         + '/segment_before_postprocess/'
                         + image_path[image_path.rfind('/') + 1:image_path.find('.')][image_path.rfind('\\') + 1:]
                         + "_segmentation.nii.gz")
         sitk.WriteImage(sitk.GetImageFromArray(seg_onehot_comb.astype(np.uint8)), seg_path_orig_before_postprocess)
+
+        seg_nib_file = nib.load(seg_path_orig_before_postprocess)
+        seg_nib_file_header = seg_nib_file.header
+        seg_nib_file_header['pixdim'] = img_header['pixdim']
+        seg_nib_file = nib.Nifti1Image(seg_onehot_comb.astype(np.uint8), img_affine, seg_nib_file_header)
+        nib.save(seg_nib_file, seg_path_orig_before_postprocess)
 
         has_pixdim = False
         pixdim = np.array([1., 1., 1.])

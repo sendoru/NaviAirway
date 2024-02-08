@@ -99,7 +99,16 @@ def main():
         try:
             pixdim_info = image_info.loc[cur_seg_path]
         except:
-            pixdim_info = None
+            nib_file = nib.load(cur_seg_path)
+            raw_img = load_one_CT_img(cur_seg_path)
+            pixdim_info = {
+                'path': cur_seg_path,
+                'has_pixdim': True,
+                'pixdim_x': nib_file.header['pixdim'][1],
+                'pixdim_y': nib_file.header['pixdim'][2],
+                'pixdim_z': nib_file.header['pixdim'][3],
+                'slice_count': raw_img.shape[0]
+            }
         break_and_save(cur_seg_path, save_path, generation_info, trace_volume_by_gen_info, trace_slice_area_info, args, pixdim_info)
         generation_info = pd.read_csv(generation_info_csv_path)
         trace_volume_by_gen_info = pd.read_csv(trace_volume_by_gen_info_csv_path)
