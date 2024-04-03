@@ -4,21 +4,23 @@
 # pip install dicom2nifti
 
 # %%
+import matplotlib.pyplot as plt
+from skimage import transform
+import logging
+import shutil
+import gc
+import dicom2nifti.settings as d2n_settings
+import dicom2nifti as d2n
+import nibabel as nib
+import cv2
+import pydicom
+from PIL import Image
+import SimpleITK as sitk
+import numpy as np
+import sys
+import os
 USE_GUI_PROMPT = False
 
-import os
-import sys
-import numpy as np
-import SimpleITK as sitk
-from PIL import Image
-import pydicom
-import cv2
-import nibabel as nib
-import dicom2nifti as d2n
-import dicom2nifti.settings as d2n_settings
-import gc
-import shutil
-import logging
 
 if USE_GUI_PROMPT:
     from PyQt5.QtCore import Qt, QObject
@@ -28,8 +30,6 @@ if USE_GUI_PROMPT:
     import PyQt5.QtGui as qtg
     from PyQt5.QtCore import Qt, QObject
 
-from skimage import transform
-import matplotlib.pyplot as plt
 
 # %%
 d2n_settings.disable_validate_slice_increment()
@@ -105,6 +105,21 @@ if not USE_GUI_PROMPT:
             print("Invalid path. Try again.")
 
 # %%
+save_option = 0
+print("Select save option: ")
+print("1. No subdirectory. Save all serieses in the same directory.")
+print("example: \n./save_dir/BE_KBE_000001_20220524.nii.gz , \n./save_dir/BE_KBE_000015_20220524.nii.gz , \n...")
+print()
+print("2. Save each patient in subdirectory.")
+print("example: \n./save_dir/BE_KBE_000001/BE_KBE_000001_20220524.nii.gz , \n./save_dir/BE_KBE_000015/BE_KBE_000015_20220524.nii.gz , \n...")
+print()
+input_str = input("Input your choice (1/2): ")
+while input_str not in ['1', '2']:
+    print("Invalid input. Please try again.")
+    input_str = input("Input your choice (1/2): ")
+save_option = int(input_str)
+
+# %%
 test_case_names = []
 for patient_name in os.listdir(dicom_dir_path):
     patient_path = os.path.join(dicom_dir_path, patient_name)
@@ -139,14 +154,19 @@ for i, test_case_name in enumerate(test_case_names):
 
     if len(fnames) == 0:
         print("No valid DICOM image serieses detected. Skipping current folder...")
-        
+
     elif len(fnames) == 1:
         print("Detected single DICOM image series. Converting to NiFTi...")
         source_path = os.path.join(temp_save_path, fnames[0])
-        dest_dict = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
+        if save_option == 1:
+            dest_dict = save_path
+        else:
+            dest_dict = os.path.join(save_path, os.path.split(
+                dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
         if not os.path.exists(dest_dict):
             os.makedirs(dest_dict)
-        dest_path = os.path.join(dest_dict, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
+        dest_path = os.path.join(
+            dest_dict, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
         shutil.copy(source_path, dest_path)
 
     else:
@@ -156,11 +176,13 @@ for i, test_case_name in enumerate(test_case_names):
         print()
         for j, fname in enumerate(fnames):
             nib_obj = nib.load(os.path.join(temp_save_path, fname))
-            print(f"{j + 1}) Series name: {'.'.join(fname.split('.')[:-2])}", f"   Image dimension: {nib_obj.header['dim'][1:4]}", sep='\n')
+            print(f"{j + 1}) Series name: {'.'.join(fname.split('.')[:-2])}",
+                  f"   Image dimension: {nib_obj.header['dim'][1:4]}", sep='\n')
         print("-" * 40)
         choice = -1
         while choice == -1:
-            raw_input = input(f"Input your choice and press ENTER ({0}~{len(fnames)}): ")
+            raw_input = input(
+                f"Input your choice and press ENTER ({0}~{len(fnames)}): ")
             if not raw_input.isnumeric() or int(raw_input) < 0 or int(raw_input) > len(fnames):
                 print("Invaid value. Please try again.")
                 continue
@@ -169,17 +191,27 @@ for i, test_case_name in enumerate(test_case_names):
         if choice == 0:
             for j, fname in enumerate(fnames):
                 source_path = os.path.join(temp_save_path, fname)
-                dest_dict = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
+                if save_option == 1:
+                    dest_dict = save_path
+                else:
+                    dest_dict = os.path.join(save_path, os.path.split(
+                        dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
                 if not os.path.exists(dest_dict):
                     os.makedirs(dest_dict)
-                dest_path = os.path.join(dest_dict, test_case_name.replace(os.path.sep, '_') + '_' + fname) + '.nii.gz'
+                dest_path = os.path.join(dest_dict, test_case_name.replace(
+                    os.path.sep, '_') + '_' + fname) + '.nii.gz'
                 shutil.copy(source_path, dest_path)
         else:
             source_path = os.path.join(temp_save_path, fnames[choice - 1])
-            dest_dict = os.path.join(save_path, os.path.split(dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
+            if save_option == 1:
+                dest_dict = save_path
+            else:
+                dest_dict = os.path.join(save_path, os.path.split(
+                    dicom_dir_path)[-1] + '_' + os.path.split(test_case_name)[0])
             if not os.path.exists(dest_dict):
                 os.makedirs(dest_dict)
-            dest_path = os.path.join(dest_dict, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
+            dest_path = os.path.join(
+                dest_dict, test_case_name.replace(os.path.sep, '_')) + '.nii.gz'
             shutil.copy(source_path, dest_path)
 
     if len(fnames) != 0:
