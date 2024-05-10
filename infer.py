@@ -60,13 +60,13 @@ def main():
                         help='if set, consider each element in ```image_path``` as directory and select all files in each ```image_path``` directory')
     parser.add_argument('--save_path', type=str, required=True, default='',
                         help='File save directory')
-    parser.add_argument('--threshold', type=float, default=0.7,
+    parser.add_argument('--threshold', type=float, default=0.6,
                         help='Threshold probability value to decide if a voxel is included in airway or not')
     parser.add_argument('--segmentation_only', action='store_true',
                         help='Do not label generation if set')
     # TODO add help
     parser.add_argument('--branch_penalty', type=float, default=16.)
-    parser.add_argument('--prune_threshold', type=float, default=0.1)
+    parser.add_argument('--prune_threshold', type=float, default=0.05)
     parser.add_argument('--use_bfs', action='store_true')
     parser.add_argument('--do_not_add_broken_parts', action='store_true')
     parser.add_argument('--device', type=str, default='cuda')
