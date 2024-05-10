@@ -47,7 +47,7 @@ def main():
     parser.add_argument('--image_info_csv_path', type=str, default='',
                         help='select *.csv file with image info such as image size')
     parser.add_argument('--branch_penalty', type=float, default=16.)
-    parser.add_argument('--prune_threshold', type=float, default=0.1)
+    parser.add_argument('--prune_threshold', type=float, default=0.05)
     parser.add_argument('--use_bfs', action='store_true')
     
     if sys.argv.__len__() == 2:
